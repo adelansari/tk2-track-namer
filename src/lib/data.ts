@@ -91,7 +91,13 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
     // Convert the itemType to API type format
     const apiType = itemType === 'track' ? 'track' : 'arena';
     
-    const response = await fetch(`/api/suggestions?type=${apiType}&itemId=${itemId}`);
+    // Use absolute URL for server components and relative URL for client components
+    const baseUrl = typeof window === 'undefined' 
+      ? 'http://localhost:9002' // Server-side (use your actual domain in production)
+      : '';
+    
+    const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}`);
+    
     if (!response.ok) {
       throw new Error(`Failed to fetch suggestions: ${response.status}`);
     }
