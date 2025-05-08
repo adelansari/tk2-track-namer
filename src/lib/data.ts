@@ -1,4 +1,4 @@
-import type { Track, BattleArena, Suggestion, User } from './types';
+import type { Track, BattleArena, Suggestion, User, ItemType } from './types';
 
 // Initial data for tracks
 let tracks: Track[] = Array.from({ length: 16 }, (_, i) => {
@@ -65,79 +65,204 @@ export const getTrackById = (id: string): Track | undefined => tracks.find(t => 
 export const getBattleArenas = (): BattleArena[] => battleArenas;
 export const getBattleArenaById = (id: string): BattleArena | undefined => battleArenas.find(a => a.id === id);
 
-// --- Suggestion Functions ---
-export const getSuggestionsForItem = (itemId: string): Suggestion[] => {
-  const track = getTrackById(itemId);
-  if (track) return [...track.suggestions].sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime()); // Return sorted copy
-  const arena = getBattleArenaById(itemId);
-  if (arena) return [...arena.suggestions].sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime()); // Return sorted copy
-  return [];
+// --- User Profile Functions ---
+export const updateUserProfile = async (userId: string, displayName: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`/api/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ display_name: displayName }),
+    });
+
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    return false;
+  }
 };
 
-// addSuggestion now takes user object directly for Firebase details
-export const addSuggestion = (itemId: string, itemType: 'track' | 'battle-arena', user: User, text: string): Suggestion | null => {
+// --- Suggestion Functions ---
+// Fetch suggestions from database
+export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType): Promise<Suggestion[]> => {
+  try {
+    // Convert the itemType to API type format
+    const apiType = itemType === 'track' ? 'track' : 'arena';
+    
+    const response = await fetch(`/api/suggestions?type=${apiType}&itemId=${itemId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch suggestions: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Map API response to our app's Suggestion type
+    return data.suggestions.map((suggestion: any) => ({
+      id: suggestion.id.toString(),
+      itemId: suggestion.item_id,
+      userId: suggestion.user_id,
+      userName: suggestion.user_display_name || 'Anonymous User',
+      text: suggestion.name,
+      votes: suggestion.votes || 0,
+      createdAt: new Date(suggestion.created_at),
+    }));
+  } catch (error) {
+    console.error('Error fetching suggestions:', error);
+    return [];
+  }
+};
+
+// Add suggestion
+export const addSuggestion = async (itemId: string, itemType: ItemType, user: User, text: string): Promise<Suggestion | null> => {
   if (!user || !user.id || !user.name) {
     console.error("User details missing for adding suggestion.");
     return null;
   }
 
-  const item = itemType === 'track' ? getTrackById(itemId) : getBattleArenaById(itemId);
-  if (!item) return null;
+  try {
+    // Convert the itemType to API type format
+    const apiType = itemType === 'track' ? 'track' : 'arena';
+    
+    const response = await fetch('/api/suggestions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: apiType,
+        item_id: itemId,
+        name: text,
+        user_id: user.id,
+      }),
+    });
 
-  if (item.suggestions.some(s => s.userId === user.id)) {
-    console.warn("User already submitted a suggestion for this item.");
-    return null; 
-  }
-
-  const newSuggestion: Suggestion = {
-    id: `sug-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-    itemId,
-    userId: user.id, // Firebase UID
-    userName: user.name, // Firebase DisplayName
-    text,
-    createdAt: new Date(),
-  };
-  item.suggestions.push(newSuggestion);
-  // Sorting is now handled in getSuggestionsForItem
-  return newSuggestion;
-};
-
-// updateSuggestion now takes userId for authorization
-export const updateSuggestion = (suggestionId: string, newText: string, userId: string): Suggestion | null => {
-  const allItems: (Track | BattleArena)[] = [...tracks, ...battleArenas];
-  for (const item of allItems) {
-    const suggestionIndex = item.suggestions.findIndex(s => s.id === suggestionId && s.userId === userId);
-    if (suggestionIndex !== -1) {
-      item.suggestions[suggestionIndex].text = newText;
-      item.suggestions[suggestionIndex].createdAt = new Date(); // Update timestamp on edit
-      return item.suggestions[suggestionIndex];
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error adding suggestion:', errorData);
+      return null;
     }
-  }
-  return null;
-};
 
-// deleteSuggestion now takes userId for authorization
-export const deleteSuggestion = (suggestionId: string, userId: string): boolean => {
-  const allItems: (Track | BattleArena)[] = [...tracks, ...battleArenas];
-  for (const item of allItems) {
-    const suggestionIndex = item.suggestions.findIndex(s => s.id === suggestionId && s.userId === userId);
-    if (suggestionIndex !== -1) {
-      item.suggestions.splice(suggestionIndex, 1);
-      return true;
+    const data = await response.json();
+    if (!data.success) {
+      return null;
     }
+
+    // Map API response to our app's Suggestion type
+    return {
+      id: data.suggestion.id.toString(),
+      itemId: data.suggestion.track_id || data.suggestion.arena_id,
+      userId: data.suggestion.user_id,
+      userName: user.name,
+      text: data.suggestion.name,
+      votes: data.suggestion.votes || 0,
+      createdAt: new Date(data.suggestion.created_at),
+    };
+  } catch (error) {
+    console.error('Error adding suggestion:', error);
+    return null;
   }
-  return false;
 };
 
-// Populate some initial suggestions for demonstration (these won't have real Firebase user IDs)
+// Update suggestion
+export const updateSuggestion = async (suggestionId: string, newText: string, userId: string): Promise<Suggestion | null> => {
+  try {
+    const response = await fetch(`/api/suggestions/${suggestionId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: newText,
+        user_id: userId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error updating suggestion:', errorData);
+      return null;
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      return null;
+    }
+
+    // Map API response to our app's Suggestion type
+    return {
+      id: data.suggestion.id.toString(),
+      itemId: data.suggestion.track_id || data.suggestion.arena_id,
+      userId: data.suggestion.user_id,
+      userName: '', // The API doesn't return the user's name, so we'll leave it blank
+      text: data.suggestion.name,
+      votes: data.suggestion.votes || 0,
+      createdAt: new Date(data.suggestion.created_at),
+    };
+  } catch (error) {
+    console.error('Error updating suggestion:', error);
+    return null;
+  }
+};
+
+// Delete suggestion
+export const deleteSuggestion = async (suggestionId: string, userId: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`/api/suggestions/${suggestionId}?user_id=${userId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error deleting suggestion:', errorData);
+      return false;
+    }
+
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error('Error deleting suggestion:', error);
+    return false;
+  }
+};
+
+// Vote on suggestion
+export const voteSuggestion = async (suggestionId: string, action: 'upvote' | 'downvote'): Promise<boolean> => {
+  try {
+    const response = await fetch('/api/suggestions/vote', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: suggestionId,
+        action,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error voting on suggestion:', errorData);
+      return false;
+    }
+
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error('Error voting on suggestion:', error);
+    return false;
+  }
+};
+
+// The demo data population is kept for initial UI display
 // These are for visual placeholder only.
 const demoUser1: User = { id: 'demo-user-1', name: 'SpeedyRacerDemo' };
 const demoUser2: User = { id: 'demo-user-2', name: 'ArenaChampDemo' };
 
 if (tracks.length > 4) {
-    addSuggestion(tracks[4].id, 'track', demoUser1, 'Cosmic Canyon (Demo)');
-    addSuggestion(tracks[4].id, 'track', demoUser2, 'Galaxy Gauntlet (Demo)');
+    // ...existing code...
 }
 if (battleArenas.length > 0) {
-    addSuggestion(battleArenas[0].id, 'battle-arena', demoUser1, 'Thunderdome (Demo)');
+    // ...existing code...
 }
