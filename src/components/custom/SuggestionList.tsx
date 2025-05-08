@@ -3,10 +3,10 @@
 import type { Suggestion, ItemType } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { deleteSuggestion, voteSuggestion, fetchSuggestionsForItem } from '@/lib/data';
+import { deleteSuggestion, voteSuggestion, fetchSuggestionsForItem, getUserVote } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
-import { Pencil, Trash2, UserCircle, MessageSquareText, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Pencil, Trash2, UserCircle, MessageSquareText, ThumbsUp, ThumbsDown, Users } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -27,15 +27,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { SuggestionForm } from './SuggestionForm';
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -43,23 +36,52 @@ interface SuggestionListProps {
   itemId: string;
   itemType: ItemType;
   suggestions: Suggestion[];
+  onEdit?: (suggestion: Suggestion) => void;
+  onSuggestionChanged?: () => Promise<void>;
 }
 
-export function SuggestionList({ itemId, itemType, suggestions: initialSuggestions }: SuggestionListProps) {
+export function SuggestionList({ 
+  itemId, 
+  itemType, 
+  suggestions: initialSuggestions,
+  onEdit,
+  onSuggestionChanged
+}: SuggestionListProps) {
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   
   // Use state for suggestions to reflect client-side updates
   const [suggestions, setSuggestions] = useState<Suggestion[]>(initialSuggestions);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingSuggestion, setEditingSuggestion] = useState<Suggestion | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [voteInProgress, setVoteInProgress] = useState<string | null>(null);
+  const [userVotes, setUserVotes] = useState<Record<string, 'upvote' | 'downvote' | null>>({});
 
   useEffect(() => {
     setSuggestions(initialSuggestions);
   }, [initialSuggestions]);
+
+  // Load user's existing votes when component mounts
+  useEffect(() => {
+    if (currentUser && suggestions.length > 0) {
+      const loadUserVotes = async () => {
+        const votes: Record<string, 'upvote' | 'downvote' | null> = {};
+        
+        for (const suggestion of suggestions) {
+          try {
+            const voteType = await getUserVote(suggestion.id, currentUser.id);
+            votes[suggestion.id] = voteType;
+          } catch (error) {
+            console.error(`Error fetching vote for suggestion ${suggestion.id}:`, error);
+          }
+        }
+        
+        setUserVotes(votes);
+      };
+      
+      loadUserVotes();
+    }
+  }, [currentUser, suggestions]);
 
   // Refresh suggestions from the database
   const refreshSuggestions = async () => {
@@ -67,6 +89,9 @@ export function SuggestionList({ itemId, itemType, suggestions: initialSuggestio
     try {
       const freshSuggestions = await fetchSuggestionsForItem(itemId, itemType);
       setSuggestions(freshSuggestions);
+      if (onSuggestionChanged) {
+        await onSuggestionChanged();
+      }
     } catch (error) {
       console.error('Error refreshing suggestions:', error);
     } finally {
@@ -96,22 +121,6 @@ export function SuggestionList({ itemId, itemType, suggestions: initialSuggestio
     }
   };
   
-  const openEditDialog = (suggestion: Suggestion) => {
-    setEditingSuggestion(suggestion);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleSuggestionUpdated = async () => {
-    closeEditDialog();
-    await refreshSuggestions();
-    router.refresh();
-  };
-
-  const closeEditDialog = () => {
-    setIsEditDialogOpen(false);
-    setEditingSuggestion(null);
-  };
-  
   const handleVote = async (suggestionId: string, action: 'upvote' | 'downvote') => {
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to vote on suggestions.", variant: "default" });
@@ -120,9 +129,15 @@ export function SuggestionList({ itemId, itemType, suggestions: initialSuggestio
     
     setVoteInProgress(suggestionId);
     try {
-      const success = await voteSuggestion(suggestionId, action);
+      const success = await voteSuggestion(suggestionId, action, currentUser.id);
       
       if (success) {
+        // Update the local userVotes state to show immediate UI feedback
+        setUserVotes(prev => ({
+          ...prev,
+          [suggestionId]: action
+        }));
+        
         await refreshSuggestions();
         toast({ 
           title: action === 'upvote' ? "Upvoted!" : "Downvoted!", 
@@ -137,6 +152,11 @@ export function SuggestionList({ itemId, itemType, suggestions: initialSuggestio
     } finally {
       setVoteInProgress(null);
     }
+  };
+
+  // Calculate number of voters (absolute value of votes to get total participants)
+  const calculateVoterCount = (votes: number) => {
+    return Math.abs(votes);
   };
 
   if (suggestions.length === 0) {
@@ -177,62 +197,65 @@ export function SuggestionList({ itemId, itemType, suggestions: initialSuggestio
               <TableCell>{formatDistanceToNow(new Date(suggestion.createdAt), { addSuffix: true })}</TableCell>
               <TableCell className="text-center">
                 <div className="flex items-center justify-center gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleVote(suggestion.id, 'upvote')}
-                    disabled={voteInProgress === suggestion.id || !currentUser || isLoading}
-                    className="h-8 w-8"
-                  >
-                    <ThumbsUp className="h-4 w-4" />
-                  </Button>
-                  <span className="font-medium">{suggestion.votes || 0}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleVote(suggestion.id, 'downvote')}
-                    disabled={voteInProgress === suggestion.id || !currentUser || isLoading}
-                    className="h-8 w-8"
-                  >
-                    <ThumbsDown className="h-4 w-4" />
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant={userVotes[suggestion.id] === 'upvote' ? "default" : "ghost"}
+                          size="icon" 
+                          onClick={() => handleVote(suggestion.id, 'upvote')}
+                          disabled={voteInProgress === suggestion.id || !currentUser || isLoading}
+                          className={`h-8 w-8 ${userVotes[suggestion.id] === 'upvote' ? "bg-green-600 hover:bg-green-700" : ""}`}
+                        >
+                          <ThumbsUp className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Upvote this suggestion</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
+                  <div className="flex flex-col items-center min-w-[40px]">
+                    <span className="font-medium">{suggestion.votes || 0}</span>
+                    <div className="flex items-center text-xs text-muted-foreground">
+                      <Users className="h-3 w-3 mr-1" />
+                      <span>{calculateVoterCount(suggestion.votes || 0)}</span>
+                    </div>
+                  </div>
+                  
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant={userVotes[suggestion.id] === 'downvote' ? "default" : "ghost"} 
+                          size="icon" 
+                          onClick={() => handleVote(suggestion.id, 'downvote')}
+                          disabled={voteInProgress === suggestion.id || !currentUser || isLoading}
+                          className={`h-8 w-8 ${userVotes[suggestion.id] === 'downvote' ? "bg-red-600 hover:bg-red-700" : ""}`}
+                        >
+                          <ThumbsDown className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Downvote this suggestion</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </TableCell>
               <TableCell className="text-right">
                 {currentUser && currentUser.id === suggestion.userId && (
                   <div className="flex justify-end gap-2">
-                    <Dialog 
-                      open={isEditDialogOpen && editingSuggestion?.id === suggestion.id} 
-                      onOpenChange={(open) => { if(!open) closeEditDialog(); }}
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      disabled={isLoading} 
+                      onClick={() => onEdit ? onEdit(suggestion) : null}
                     >
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="icon"
-                          disabled={isLoading} 
-                          onClick={() => openEditDialog(suggestion)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Edit Your Suggestion</DialogTitle>
-                          <DialogDescription>
-                            Modify your name suggestion for this item.
-                          </DialogDescription>
-                        </DialogHeader>
-                        {editingSuggestion && (
-                          <SuggestionForm
-                            itemId={itemId}
-                            itemType={itemType}
-                            existingSuggestion={editingSuggestion}
-                            onSuggestionSubmitted={handleSuggestionUpdated}
-                          />
-                        )}
-                      </DialogContent>
-                    </Dialog>
+                      <Pencil className="h-4 w-4" />
+                      <span className="sr-only">Edit</span>
+                    </Button>
 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>

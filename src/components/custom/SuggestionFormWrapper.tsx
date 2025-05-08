@@ -7,6 +7,15 @@ import { fetchSuggestionsForItem } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ItemType, Suggestion } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
+import { PlusCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
 
 interface SuggestionFormWrapperProps {
   itemId: string;
@@ -17,6 +26,9 @@ export function SuggestionFormWrapper({ itemId, itemType }: SuggestionFormWrappe
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isNewSuggestionDialogOpen, setIsNewSuggestionDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingSuggestion, setEditingSuggestion] = useState<Suggestion | null>(null);
   const { currentUser } = useAuth();
 
   // Fetch suggestions from the database when component mounts or when dependencies change
@@ -38,15 +50,45 @@ export function SuggestionFormWrapper({ itemId, itemType }: SuggestionFormWrappe
     fetchData();
   }, [itemId, itemType]);
 
-  // Check if the current user already has a suggestion for this item
-  const userSuggestion = currentUser 
-    ? suggestions.find(s => s.userId === currentUser.id) 
-    : null;
+  const refreshSuggestions = async () => {
+    try {
+      const data = await fetchSuggestionsForItem(itemId, itemType);
+      setSuggestions(data);
+    } catch (err) {
+      console.error('Error refetching suggestions:', err);
+    }
+  };
+
+  const handleSuggestionSubmitted = async () => {
+    await refreshSuggestions();
+    setIsNewSuggestionDialogOpen(false);
+    setIsEditDialogOpen(false);
+    setEditingSuggestion(null);
+  };
+
+  const openEditDialog = (suggestion: Suggestion) => {
+    setEditingSuggestion(suggestion);
+    setIsEditDialogOpen(true);
+  };
 
   return (
     <div className="space-y-6 py-2">
       <div className="bg-muted/50 rounded-lg p-4">
-        <h2 className="font-semibold text-xl mb-4">Suggest a Name</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="font-semibold text-xl">Suggest a Name</h2>
+          {currentUser && (
+            <Button 
+              onClick={() => setIsNewSuggestionDialogOpen(true)}
+              variant="outline" 
+              size="sm"
+              className="flex items-center gap-1"
+            >
+              <PlusCircle className="h-4 w-4" />
+              New Suggestion
+            </Button>
+          )}
+        </div>
+
         {loading ? (
           <div className="space-y-2">
             <Skeleton className="h-4 w-full" />
@@ -56,16 +98,53 @@ export function SuggestionFormWrapper({ itemId, itemType }: SuggestionFormWrappe
           <SuggestionForm 
             itemId={itemId} 
             itemType={itemType}
-            existingSuggestion={userSuggestion} 
-            onSuggestionSubmitted={() => {
-              // Refetch suggestions when a new one is submitted
-              fetchSuggestionsForItem(itemId, itemType)
-                .then(data => setSuggestions(data))
-                .catch(err => console.error('Error refetching suggestions:', err));
-            }}
+            onSuggestionSubmitted={handleSuggestionSubmitted}
           />
         )}
       </div>
+
+      {/* New Suggestion Dialog */}
+      <Dialog 
+        open={isNewSuggestionDialogOpen} 
+        onOpenChange={setIsNewSuggestionDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add a New Suggestion</DialogTitle>
+            <DialogDescription>
+              Submit another name suggestion for this item
+            </DialogDescription>
+          </DialogHeader>
+          <SuggestionForm 
+            itemId={itemId} 
+            itemType={itemType} 
+            onSuggestionSubmitted={handleSuggestionSubmitted}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Suggestion Dialog */}
+      <Dialog 
+        open={isEditDialogOpen} 
+        onOpenChange={setIsEditDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Your Suggestion</DialogTitle>
+            <DialogDescription>
+              Update your existing name suggestion
+            </DialogDescription>
+          </DialogHeader>
+          {editingSuggestion && (
+            <SuggestionForm 
+              itemId={itemId} 
+              itemType={itemType}
+              existingSuggestion={editingSuggestion}
+              onSuggestionSubmitted={handleSuggestionSubmitted}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="mt-8">
         {loading ? (
@@ -83,6 +162,8 @@ export function SuggestionFormWrapper({ itemId, itemType }: SuggestionFormWrappe
             itemId={itemId} 
             itemType={itemType}
             suggestions={suggestions}
+            onEdit={openEditDialog}
+            onSuggestionChanged={refreshSuggestions}
           />
         )}
       </div>

@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import type { Suggestion, ItemType } from "@/lib/types";
-import { addSuggestion, updateSuggestion, getTrackById, getBattleArenaById, fetchSuggestionsForItem } from "@/lib/data"; 
+import { addSuggestion, updateSuggestion, getTrackById, getBattleArenaById } from "@/lib/data"; 
 import { useRouter } from 'next/navigation'; 
 import { useState } from 'react';
 
@@ -75,23 +75,11 @@ export function SuggestionForm({ itemId, itemType, existingSuggestion, onSuggest
         if (result) {
           toast({ title: "Success!", description: "Your suggestion has been submitted." });
         } else {
-          // Check if the user already has a suggestion for this item
-          const suggestions = await fetchSuggestionsForItem(itemId, itemType);
-          const userSuggestion = suggestions.find(s => s.userId === currentUser.id);
-          
-          if (userSuggestion) {
-            toast({ 
-              title: "Hold Up!", 
-              description: "You've already suggested a name for this item. Edit your existing one if you'd like.", 
-              variant: "default" 
-            });
-          } else {
-            toast({ 
-              title: "Error", 
-              description: "Failed to submit suggestion.", 
-              variant: "destructive" 
-            });
-          }
+          toast({ 
+            title: "Error", 
+            description: "Failed to submit suggestion.", 
+            variant: "destructive" 
+          });
         }
       }
       
@@ -112,10 +100,8 @@ export function SuggestionForm({ itemId, itemType, existingSuggestion, onSuggest
     return <p className="text-muted-foreground">Please log in to suggest a name.</p>;
   }
 
-  // We're checking from the database now, so this local check is redundant
   const itemData = itemType === 'track' ? getTrackById(itemId) : getBattleArenaById(itemId);
   
-  // Only prevent new suggestions for pre-named tracks (1-4)
   const isPreNamed = itemData?.name;
   const isUneditablePreNamedTrack = itemType === 'track' && isPreNamed && itemData && itemData.numericId <= 4;
 
