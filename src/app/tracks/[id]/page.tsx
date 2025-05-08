@@ -55,7 +55,7 @@ export default function TrackDetailPage({ params }: TrackDetailPageProps) {
           </div>
           <CardDescription className="text-lg text-muted-foreground mb-6">
             {isPreNamedUneditable 
-              ? "This track has an official name. You can still view suggestions from others."
+              ? "This track has an official name. You cannot suggest a name."
               : `Help us find the perfect name for Track ${String(track.numericId).padStart(2, '0')}! Submit your creative ideas below.`
             }
           </CardDescription>

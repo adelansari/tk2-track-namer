@@ -1,4 +1,4 @@
-import { getBattleArenaById, getBattleArenas } from '@/lib/data';
+import { getBattleArenaById, getBattleArenas, fetchSuggestionsForItem } from '@/lib/data';
 import Image from 'next/image';
 import { SuggestionFormWrapper } from '@/components/custom/SuggestionFormWrapper';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,8 +10,8 @@ interface BattleArenaDetailPageProps {
   params: { id: string };
 }
 
-export default function BattleArenaDetailPage({ params }: BattleArenaDetailPageProps) {
-  // Use the id from params object
+export default async function BattleArenaDetailPage({ params }: BattleArenaDetailPageProps) {
+  // Properly await the params in an async function
   const id = params.id;
   const arena = getBattleArenaById(id);
 
@@ -19,15 +19,25 @@ export default function BattleArenaDetailPage({ params }: BattleArenaDetailPageP
     notFound();
   }
 
+  // Fetch actual suggestions for this arena
+  try {
+    const suggestions = await fetchSuggestionsForItem(arena.id, 'battle-arena');
+    arena.suggestions = suggestions;
+  } catch (error) {
+    console.error(`Error fetching suggestions for arena ${arena.id}:`, error);
+    arena.suggestions = [];
+  }
+
   const title = arena.name || `Arena ${String(arena.numericId).padStart(2, '0')}`;
 
   return (
     <div className="space-y-8">
-      <Breadcrumbs items={[
-        { href: '/', label: 'Home' },
-        { href: '/battle-arenas', label: 'Battle Arenas' },
-        { href: `/battle-arenas/${arena.id}`, label: title }
-      ]} />
+      <Breadcrumbs
+        segments={[
+          { href: '/battle-arenas', label: 'Battle Arenas' },
+          { label: title }
+        ]}
+      />
       
       <Card className="overflow-hidden">
         <CardHeader className="p-0">
