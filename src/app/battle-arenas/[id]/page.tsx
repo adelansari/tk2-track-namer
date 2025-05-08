@@ -7,12 +7,13 @@ import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
 
 interface BattleArenaDetailPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }> | { id: string };
 }
 
 export default async function BattleArenaDetailPage({ params }: BattleArenaDetailPageProps) {
   // Properly await the params in an async function
-  const id = params.id;
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
   const arena = getBattleArenaById(id);
 
   if (!arena) {

@@ -21,10 +21,11 @@ async function getSuggestionWithType(id: string) {
 // GET a specific suggestion by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const id = params.id;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
     const { suggestion, type } = await getSuggestionWithType(id);
     
     if (!suggestion) {
@@ -51,10 +52,11 @@ export async function GET(
 // PUT to update a suggestion
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const id = params.id;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
     const { name, user_id } = await request.json();
     
     if (!name || typeof name !== 'string') {
@@ -112,10 +114,11 @@ export async function PUT(
 // DELETE a suggestion
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const id = params.id;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
     const user_id = request.nextUrl.searchParams.get('user_id');
     
     if (!user_id) {

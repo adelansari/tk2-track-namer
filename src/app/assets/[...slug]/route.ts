@@ -5,9 +5,10 @@ import path from 'path';
 // This route handler will serve static files from the src/assets directory
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string[] } }
+  { params }: { params: Promise<{ slug: string[] }> | { slug: string[] } }
 ) {
-  const slug = params.slug || [];
+  const resolvedParams = await params;
+  const slug = resolvedParams.slug || [];
   const assetPath = path.join(process.cwd(), 'src', 'assets', ...slug);
   
   try {
