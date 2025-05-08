@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,9 +15,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import type { Suggestion } from "@/lib/types";
-import { addSuggestion, updateSuggestion, getTrackById, getBattleArenaById } from "@/lib/data"; 
+import type { Suggestion, ItemType } from "@/lib/types";
+import { addSuggestion, updateSuggestion, getTrackById, getBattleArenaById, fetchSuggestionsForItem } from "@/lib/data"; 
 import { useRouter } from 'next/navigation'; 
+import { useState } from 'react';
 
 const formSchema = z.object({
   suggestionText: z.string().min(2, {
@@ -30,7 +30,7 @@ const formSchema = z.object({
 
 interface SuggestionFormProps {
   itemId: string;
-  itemType: 'track' | 'battle-arena';
+  itemType: ItemType;
   existingSuggestion?: Suggestion | null; 
   onSuggestionSubmitted?: () => void;
 }
@@ -39,6 +39,7 @@ export function SuggestionForm({ itemId, itemType, existingSuggestion, onSuggest
   const { toast } = useToast();
   const { currentUser } = useAuth();
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -53,29 +54,44 @@ export function SuggestionForm({ itemId, itemType, existingSuggestion, onSuggest
       return;
     }
 
+    setIsSubmitting(true);
+    
     try {
       let result: Suggestion | null = null;
+      
       if (existingSuggestion) {
-        // For update, currentUser.id is used for authorization within updateSuggestion
-        result = updateSuggestion(existingSuggestion.id, values.suggestionText, currentUser.id);
+        // Update existing suggestion
+        result = await updateSuggestion(existingSuggestion.id, values.suggestionText, currentUser.id);
+        
         if (result) {
           toast({ title: "Success!", description: "Your suggestion has been updated." });
         } else {
           toast({ title: "Error", description: "Failed to update suggestion or not authorized.", variant: "destructive" });
         }
       } else {
-        // For add, pass the whole currentUser object to use its id and name
-        result = addSuggestion(itemId, itemType, currentUser, values.suggestionText);
+        // Add new suggestion
+        result = await addSuggestion(itemId, itemType, currentUser, values.suggestionText);
+        
         if (result) {
           toast({ title: "Success!", description: "Your suggestion has been submitted." });
         } else {
-           const itemData = itemType === 'track' ? getTrackById(itemId) : getBattleArenaById(itemId);
-           const userSuggestion = itemData?.suggestions.find(s => s.userId === currentUser.id);
-            if (userSuggestion) {
-                 toast({ title: "Hold Up!", description: "You've already suggested a name for this item. Edit your existing one if you'd like.", variant: "default" });
-            } else {
-                 toast({ title: "Error", description: "Failed to submit suggestion.", variant: "destructive" });
-            }
+          // Check if the user already has a suggestion for this item
+          const suggestions = await fetchSuggestionsForItem(itemId, itemType);
+          const userSuggestion = suggestions.find(s => s.userId === currentUser.id);
+          
+          if (userSuggestion) {
+            toast({ 
+              title: "Hold Up!", 
+              description: "You've already suggested a name for this item. Edit your existing one if you'd like.", 
+              variant: "default" 
+            });
+          } else {
+            toast({ 
+              title: "Error", 
+              description: "Failed to submit suggestion.", 
+              variant: "destructive" 
+            });
+          }
         }
       }
       
@@ -87,6 +103,8 @@ export function SuggestionForm({ itemId, itemType, existingSuggestion, onSuggest
     } catch (error) {
       console.error("Suggestion submission error:", error);
       toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -94,20 +112,16 @@ export function SuggestionForm({ itemId, itemType, existingSuggestion, onSuggest
     return <p className="text-muted-foreground">Please log in to suggest a name.</p>;
   }
 
+  // We're checking from the database now, so this local check is redundant
   const itemData = itemType === 'track' ? getTrackById(itemId) : getBattleArenaById(itemId);
-  const hasExistingUserSuggestion = itemData?.suggestions.some(s => s.userId === currentUser.id && s.id !== existingSuggestion?.id);
-
-  if (hasExistingUserSuggestion && !existingSuggestion) {
-     return <p className="text-muted-foreground">You have already submitted a suggestion for this item. You can edit or delete it below.</p>;
-  }
   
+  // Only prevent new suggestions for pre-named tracks (1-4)
   const isPreNamed = itemData?.name;
-  const isUneditablePreNamedTrack = itemType === 'track' && isPreNamed && itemData && itemData.numericId <=4;
+  const isUneditablePreNamedTrack = itemType === 'track' && isPreNamed && itemData && itemData.numericId <= 4;
 
-  if (isUneditablePreNamedTrack && !existingSuggestion) { // Allow editing own suggestion even if track is pre-named
+  if (isUneditablePreNamedTrack && !existingSuggestion) { 
     return <p className="text-muted-foreground">This track has an official name and new suggestions cannot be submitted. You can still edit your existing suggestion if available.</p>;
   }
-
 
   return (
     <Form {...form}>
@@ -125,8 +139,16 @@ export function SuggestionForm({ itemId, itemType, existingSuggestion, onSuggest
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full sm:w-auto" variant={existingSuggestion ? "secondary" : "default"}>
-          {existingSuggestion ? "Update Suggestion" : "Submit Suggestion"}
+        <Button 
+          type="submit" 
+          className="w-full sm:w-auto" 
+          variant={existingSuggestion ? "secondary" : "default"}
+          disabled={isSubmitting}
+        >
+          {isSubmitting 
+            ? (existingSuggestion ? "Updating..." : "Submitting...") 
+            : (existingSuggestion ? "Update Suggestion" : "Submit Suggestion")
+          }
         </Button>
       </form>
     </Form>
