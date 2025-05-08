@@ -228,7 +228,7 @@ export const deleteSuggestion = async (suggestionId: string, userId: string): Pr
 };
 
 // Vote on suggestion
-export const voteSuggestion = async (suggestionId: string, action: 'upvote' | 'downvote'): Promise<boolean> => {
+export const voteSuggestion = async (suggestionId: string, action: 'upvote' | 'downvote', userId: string): Promise<boolean> => {
   try {
     const response = await fetch('/api/suggestions/vote', {
       method: 'POST',
@@ -238,6 +238,7 @@ export const voteSuggestion = async (suggestionId: string, action: 'upvote' | 'd
       body: JSON.stringify({
         id: suggestionId,
         action,
+        user_id: userId
       }),
     });
 
@@ -252,6 +253,27 @@ export const voteSuggestion = async (suggestionId: string, action: 'upvote' | 'd
   } catch (error) {
     console.error('Error voting on suggestion:', error);
     return false;
+  }
+};
+
+// Get a user's vote on a specific suggestion
+export const getUserVote = async (suggestionId: string, userId: string): Promise<'upvote' | 'downvote' | null> => {
+  try {
+    const response = await fetch(`/api/suggestions/vote/status?suggestion_id=${suggestionId}&user_id=${userId}`);
+    
+    if (!response.ok) {
+      return null;
+    }
+    
+    const data = await response.json();
+    if (data.success && data.vote) {
+      return data.vote.vote_type === 1 ? 'upvote' : 'downvote';
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting user vote status:', error);
+    return null;
   }
 };
 
