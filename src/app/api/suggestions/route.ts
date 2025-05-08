@@ -47,26 +47,26 @@ export async function GET(request: NextRequest) {
     if (type === 'arena' || type === 'all') {
       const arenaQuery = `
         SELECT 
-          as.id, 
-          as.arena_id as item_id, 
-          as.name, 
-          as.votes, 
-          as.created_at, 
-          as.updated_at,
+          arena_sugg.id, 
+          arena_sugg.arena_id as item_id, 
+          arena_sugg.name, 
+          arena_sugg.votes, 
+          arena_sugg.created_at, 
+          arena_sugg.updated_at,
           up.display_name as user_display_name,
-          as.user_id,
+          arena_sugg.user_id,
           'arena' as type
-        FROM arena_suggestions as
-        LEFT JOIN user_profiles up ON as.user_id = up.uid
+        FROM arena_suggestions arena_sugg
+        LEFT JOIN user_profiles up ON arena_sugg.user_id = up.uid
       `;
       
       if (itemId) {
         if (type === 'arena') {
-          queryText = arenaQuery + ' WHERE as.arena_id = $1';
+          queryText = arenaQuery + ' WHERE arena_sugg.arena_id = $1';
           queryParams.push(itemId);
         } else {
           // For 'all' type with itemId, we need to handle both tables separately
-          queryText = queryText + ' UNION ALL ' + arenaQuery + ' WHERE as.arena_id = $' + (queryParams.length + 1);
+          queryText = queryText + ' UNION ALL ' + arenaQuery + ' WHERE arena_sugg.arena_id = $' + (queryParams.length + 1);
           queryParams.push(itemId);
         }
       } else {
