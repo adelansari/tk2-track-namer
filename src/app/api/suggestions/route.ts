@@ -168,6 +168,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // We're no longer checking if the user has already submitted a suggestion for this item
+    // Multiple suggestions from the same user are now allowed
+    
     let result;
     if (type === 'track') {
       result = await query(
