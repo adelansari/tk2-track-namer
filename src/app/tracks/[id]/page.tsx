@@ -1,4 +1,4 @@
-import { getTrackById, getTracks } from '@/lib/data';
+import { getTrackById, getTracks, fetchSuggestionsForItem } from '@/lib/data';
 import Image from 'next/image';
 import { SuggestionFormWrapper } from '@/components/custom/SuggestionFormWrapper';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -7,16 +7,26 @@ import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
 
 interface TrackDetailPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }> | { id: string };
 }
 
-export default function TrackDetailPage({ params }: TrackDetailPageProps) {
-  // Use the id from params object
-  const id = params.id;
+export default async function TrackDetailPage({ params }: TrackDetailPageProps) {
+  // Properly await the params in an async function
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
   const track = getTrackById(id);
 
   if (!track) {
     notFound();
+  }
+  
+  // Fetch actual suggestions for this track
+  try {
+    const suggestions = await fetchSuggestionsForItem(track.id, 'track');
+    track.suggestions = suggestions;
+  } catch (error) {
+    console.error(`Error fetching suggestions for track ${track.id}:`, error);
+    track.suggestions = [];
   }
   
   const title = track.name || `Track ${String(track.numericId).padStart(2, '0')}`;
@@ -24,10 +34,9 @@ export default function TrackDetailPage({ params }: TrackDetailPageProps) {
 
   return (
     <div className="space-y-8">
-      <Breadcrumbs items={[
-        { href: '/', label: 'Home' },
+      <Breadcrumbs segments={[
         { href: '/tracks', label: 'Racing Tracks' },
-        { href: `/tracks/${track.id}`, label: title }
+        { label: title }
       ]} />
       
       <Card className="overflow-hidden">
