@@ -1,9 +1,13 @@
+"use client";
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, CheckCircle2, MessageSquare } from 'lucide-react';
 import type { Track, BattleArena } from '@/lib/types';
+import { fetchSuggestionsForItem } from '@/lib/data';
 
 interface ItemCardProps {
   item: Track | BattleArena;
@@ -11,11 +15,28 @@ interface ItemCardProps {
 }
 
 export function ItemCard({ item, itemType }: ItemCardProps) {
+  const [suggestionCount, setSuggestionCount] = useState<number>(item.suggestions?.length || 0);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch suggestions directly in the component to ensure we have the latest count
+  useEffect(() => {
+    const getSuggestions = async () => {
+      try {
+        setIsLoading(true);
+        const suggestions = await fetchSuggestionsForItem(item.id, itemType);
+        setSuggestionCount(suggestions.length);
+      } catch (error) {
+        console.error(`Error fetching suggestions for ${item.id}:`, error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    getSuggestions();
+  }, [item.id, itemType]);
+
   const link = `/${itemType === 'track' ? 'tracks' : 'battle-arenas'}/${item.id}`;
   const title = item.name || `${itemType === 'track' ? 'Track' : 'Arena'} ${String(item.numericId).padStart(2, '0')}`;
-  
-  // Add debugging for suggestion data
-  console.log(`[ItemCard] ${item.id} has ${item.suggestions?.length || 0} suggestions`);
   
   // Check if the item name is a default Arena name (e.g. "Arena 01") which isn't a real official name
   const isDefaultArenaName = itemType === 'battle-arena' && item.name?.startsWith('Arena ');
@@ -48,13 +69,15 @@ export function ItemCard({ item, itemType }: ItemCardProps) {
             <CardDescription className="text-sm">Suggest a name for this {itemType === 'track' ? 'track' : 'arena'}.</CardDescription>
         )}
         
-        {item.suggestions.length > 0 ? (
+        {suggestionCount > 0 ? (
           <p className="text-xs text-muted-foreground mt-1 flex items-center">
             <MessageSquare className="h-3 w-3 mr-1" />
-            {item.suggestions.length} suggestion{item.suggestions.length !== 1 ? 's' : ''}
+            {suggestionCount} suggestion{suggestionCount !== 1 ? 's' : ''}
           </p>
         ) : (
-          !hasOfficialName && <p className="text-xs text-muted-foreground mt-1">No suggestions yet</p>
+          !hasOfficialName && <p className="text-xs text-muted-foreground mt-1">
+            {isLoading ? 'Loading...' : 'No suggestions yet'}
+          </p>
         )}
       </CardContent>
       <CardFooter className="p-4 pt-0">
