@@ -1,4 +1,3 @@
-
 export interface User {
   id: string; // Firebase UID
   name: string; // Firebase DisplayName
@@ -13,6 +12,7 @@ export interface Suggestion {
   userName: string; // Firebase DisplayName of the user
   text: string;
   createdAt: Date;
+  votes?: number; // Number of votes for this suggestion
 }
 
 export interface Track {
