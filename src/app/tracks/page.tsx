@@ -1,5 +1,5 @@
-import { getTracks } from '@/lib/data';
-import { ItemCardWithSuggestions } from '@/components/custom/ItemCardWithSuggestions';
+import { getTracks, fetchSuggestionsForItem } from '@/lib/data';
+import { ItemCard } from '@/components/custom/ItemCard';
 import { Separator } from '@/components/ui/separator';
 import { Route } from 'lucide-react';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
@@ -7,7 +7,16 @@ import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
 export default async function TracksPage() {
   const tracks = getTracks();
   
-  // No server-side fetching of suggestions - we'll let client components handle that
+  // Fetch suggestion counts for all tracks
+  for (const track of tracks) {
+    try {
+      const suggestions = await fetchSuggestionsForItem(track.id, 'track');
+      track.suggestions = suggestions;
+    } catch (error) {
+      console.error(`Error fetching suggestions for track ${track.id}:`, error);
+      track.suggestions = [];
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -24,7 +33,7 @@ export default async function TracksPage() {
       <Separator />
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {tracks.map(track => (
-          <ItemCardWithSuggestions key={track.id} item={track} itemType="track" />
+          <ItemCard key={track.id} item={track} itemType="track" />
         ))}
       </div>
     </div>

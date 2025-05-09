@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
 
     let queryText = '';
     let queryParams: any[] = [];
+    let countQuery = '';
     
     if (type === 'track' || type === 'all') {
       queryText = `
@@ -33,6 +34,13 @@ export async function GET(request: NextRequest) {
       if (itemId) {
         queryText += ' WHERE ts.track_id = $1';
         queryParams.push(itemId);
+      }
+      
+      if (type === 'all') {
+        countQuery = `
+          SELECT COUNT(*) as track_count FROM track_suggestions
+          ${itemId ? ' WHERE track_id = $1' : ''}
+        `;
       }
     }
     
@@ -69,6 +77,26 @@ export async function GET(request: NextRequest) {
           queryText = queryText + ' UNION ALL ' + arenaQuery;
         }
       }
+      
+      if (type === 'all') {
+        const arenaCountQuery = `
+          SELECT COUNT(*) as arena_count FROM arena_suggestions
+          ${itemId ? ' WHERE arena_id = $1' : ''}
+        `;
+        countQuery = countQuery ? countQuery + '; ' + arenaCountQuery : arenaCountQuery;
+      } else if (type === 'arena') {
+        countQuery = `
+          SELECT COUNT(*) as count FROM arena_suggestions
+          ${itemId ? ' WHERE arena_id = $1' : ''}
+        `;
+      }
+    }
+    
+    if (type === 'track') {
+      countQuery = `
+        SELECT COUNT(*) as count FROM track_suggestions
+        ${itemId ? ' WHERE track_id = $1' : ''}
+      `;
     }
     
     // Add order by and pagination
@@ -79,28 +107,17 @@ export async function GET(request: NextRequest) {
     // Execute the query
     const result = await query(queryText, queryParams);
     
-    // Get count - simplified approach
+    // Get total count for pagination
     let totalItems = 0;
-    try {
-      if (type === 'track' || type === 'all') {
-        const trackCountResult = await query(
-          `SELECT COUNT(*) as count FROM track_suggestions ${itemId ? 'WHERE track_id = $1' : ''}`,
-          itemId ? [itemId] : []
-        );
-        totalItems += parseInt(trackCountResult.rows[0].count || '0', 10);
-      }
+    if (countQuery) {
+      const countResult = await query(countQuery, itemId ? [itemId] : []);
       
-      if (type === 'arena' || type === 'all') {
-        const arenaCountResult = await query(
-          `SELECT COUNT(*) as count FROM arena_suggestions ${itemId ? 'WHERE arena_id = $1' : ''}`,
-          itemId ? [itemId] : []
-        );
-        totalItems += parseInt(arenaCountResult.rows[0].count || '0', 10);
+      if (type === 'all') {
+        totalItems = parseInt(countResult.rows[0].track_count || '0', 10) + 
+                     parseInt(countResult.rows[1].arena_count || '0', 10);
+      } else {
+        totalItems = parseInt(countResult.rows[0].count || '0', 10);
       }
-    } catch (err) {
-      // If count query fails, just use the result length as total
-      console.error('Error counting suggestions:', err);
-      totalItems = result.rows.length;
     }
     
     return NextResponse.json({

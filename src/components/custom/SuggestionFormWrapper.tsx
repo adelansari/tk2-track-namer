@@ -20,12 +20,11 @@ import {
 interface SuggestionFormWrapperProps {
   itemId: string;
   itemType: ItemType;
-  initialSuggestions?: Suggestion[];
 }
 
-export function SuggestionFormWrapper({ itemId, itemType, initialSuggestions = [] }: SuggestionFormWrapperProps) {
-  const [suggestions, setSuggestions] = useState<Suggestion[]>(initialSuggestions);
-  const [loading, setLoading] = useState(!initialSuggestions.length);
+export function SuggestionFormWrapper({ itemId, itemType }: SuggestionFormWrapperProps) {
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isNewSuggestionDialogOpen, setIsNewSuggestionDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -34,14 +33,6 @@ export function SuggestionFormWrapper({ itemId, itemType, initialSuggestions = [
 
   // Fetch suggestions from the database when component mounts or when dependencies change
   useEffect(() => {
-    // If we have initial suggestions passed from server, use those first
-    if (initialSuggestions && initialSuggestions.length > 0) {
-      setSuggestions(initialSuggestions);
-      setLoading(false);
-      return;
-    }
-
-    // Otherwise fetch from API
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -57,7 +48,7 @@ export function SuggestionFormWrapper({ itemId, itemType, initialSuggestions = [
     };
 
     fetchData();
-  }, [itemId, itemType, initialSuggestions]);
+  }, [itemId, itemType]);
 
   const refreshSuggestions = async () => {
     try {

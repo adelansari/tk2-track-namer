@@ -45,7 +45,7 @@ export function ItemCard({ item, itemType }: ItemCardProps) {
             <CardDescription className="text-sm">Suggest a name for this {itemType === 'track' ? 'track' : 'arena'}.</CardDescription>
         )}
         
-        {item.suggestions && item.suggestions.length > 0 ? (
+        {item.suggestions.length > 0 ? (
           <p className="text-xs text-muted-foreground mt-1 flex items-center">
             <MessageSquare className="h-3 w-3 mr-1" />
             {item.suggestions.length} suggestion{item.suggestions.length !== 1 ? 's' : ''}

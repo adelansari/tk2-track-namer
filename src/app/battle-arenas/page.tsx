@@ -1,5 +1,5 @@
-import { getBattleArenas } from '@/lib/data';
-import { ItemCardWithSuggestions } from '@/components/custom/ItemCardWithSuggestions';
+import { getBattleArenas, fetchSuggestionsForItem } from '@/lib/data';
+import { ItemCard } from '@/components/custom/ItemCard';
 import { Separator } from '@/components/ui/separator';
 import { Swords } from 'lucide-react';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
@@ -7,7 +7,16 @@ import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
 export default async function BattleArenasPage() {
   const battleArenas = getBattleArenas();
   
-  // No server-side fetching of suggestions - we'll let client components handle that
+  // Fetch suggestion counts for all battle arenas
+  for (const arena of battleArenas) {
+    try {
+      const suggestions = await fetchSuggestionsForItem(arena.id, 'battle-arena');
+      arena.suggestions = suggestions;
+    } catch (error) {
+      console.error(`Error fetching suggestions for arena ${arena.id}:`, error);
+      arena.suggestions = [];
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -24,7 +33,7 @@ export default async function BattleArenasPage() {
       <Separator />
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {battleArenas.map(arena => (
-          <ItemCardWithSuggestions key={arena.id} item={arena} itemType="battle-arena" />
+          <ItemCard key={arena.id} item={arena} itemType="battle-arena" />
         ))}
       </div>
     </div>

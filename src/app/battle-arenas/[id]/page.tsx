@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Shield } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
-import type { Suggestion } from '@/lib/types';
 
 interface BattleArenaDetailPageProps {
   params: Promise<{ id: string }> | { id: string };
@@ -22,9 +21,8 @@ export default async function BattleArenaDetailPage({ params }: BattleArenaDetai
   }
 
   // Fetch actual suggestions for this arena
-  let suggestions: Suggestion[] = [];
   try {
-    suggestions = await fetchSuggestionsForItem(arena.id, 'battle-arena');
+    const suggestions = await fetchSuggestionsForItem(arena.id, 'battle-arena');
     arena.suggestions = suggestions;
   } catch (error) {
     console.error(`Error fetching suggestions for arena ${arena.id}:`, error);
@@ -67,11 +65,7 @@ export default async function BattleArenaDetailPage({ params }: BattleArenaDetai
 
       <Card>
         <CardContent className="p-6">
-          <SuggestionFormWrapper 
-            itemId={arena.id} 
-            itemType="battle-arena"
-            initialSuggestions={suggestions}
-          />
+          <SuggestionFormWrapper itemId={arena.id} itemType="battle-arena" />
         </CardContent>
       </Card>
     </div>

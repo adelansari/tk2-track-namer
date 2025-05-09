@@ -57,31 +57,9 @@ export function SuggestionList({
   const [voteInProgress, setVoteInProgress] = useState<string | null>(null);
   const [userVotes, setUserVotes] = useState<Record<string, 'upvote' | null>>({});
 
-  // Use effect to fetch suggestions if none are provided
-  useEffect(() => {
-    // If we have suggestions in props, use them
-    if (initialSuggestions && initialSuggestions.length > 0) {
-      setSuggestions(initialSuggestions);
-      return;
-    }
-
-    // If no initial suggestions, fetch them
-    if (initialSuggestions.length === 0) {
-      refreshSuggestions();
-    }
-  }, [itemId, itemType]);  // Only run on mount and when item changes
-
   useEffect(() => {
     setSuggestions(initialSuggestions);
   }, [initialSuggestions]);
-
-  // Use effect specifically to check if we need to force a refresh when suggestions appear empty but shouldn't be
-  useEffect(() => {
-    // If we're not loading, have no suggestions in state, but DO have initialSuggestions, sync them
-    if (!isLoading && suggestions.length === 0 && initialSuggestions.length > 0) {
-      setSuggestions(initialSuggestions);
-    }
-  }, [suggestions.length, initialSuggestions.length, isLoading]);
 
   // Load user's existing votes when component mounts
   useEffect(() => {
@@ -193,7 +171,6 @@ export function SuggestionList({
     }
   };
 
-  // Simple empty state check - no automatic refreshing in the render method
   if (suggestions.length === 0) {
     return (
       <div className="text-center py-8">

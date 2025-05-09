@@ -91,7 +91,7 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
     // Convert the itemType to API type format
     const apiType = itemType === 'track' ? 'track' : 'arena';
     
-    // Only skip API calls during build phase
+    // Only skip API calls during actual build phase, not during runtime in production
     const isBuildTime = typeof process !== 'undefined' && 
                         process.env.NODE_ENV === 'production' && 
                         typeof window === 'undefined' && 
@@ -105,13 +105,14 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
     // Determine the base URL
     let baseUrl = '';
     
-    // In browser environment, we use relative URLs
+    // In browser environment, we can use relative URLs
     if (typeof window !== 'undefined') {
-      // We're in the browser, use relative URL - no baseUrl needed
+      // We're in the browser, use relative URL
+      baseUrl = '';
     }
-    // In server environment we need absolute URLs
+    // In server environment (but not during build)
     else {
-      // For production SSR
+      // For production SSR (not build)
       if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod') {
         baseUrl = process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app';
       } else {
@@ -120,25 +121,13 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
       }
     }
     
-    // Simple cache buster to prevent stale data
-    const timestamp = Date.now();
-    const url = `${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}&t=${timestamp}`;
-    
-    const response = await fetch(url, {
-      // Ensure we're not using cached responses
-      cache: 'no-store'
-    });
+    const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}`);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch suggestions: ${response.status}`);
     }
 
     const data = await response.json();
-    
-    if (!data.suggestions || !Array.isArray(data.suggestions)) {
-      console.error("Invalid data format received for suggestions");
-      return [];
-    }
     
     return data.suggestions.map((suggestion: any) => ({
       id: suggestion.id.toString(),
@@ -150,7 +139,7 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
       createdAt: new Date(suggestion.created_at),
     }));
   } catch (error) {
-    console.error(`Error fetching suggestions for ${itemType} ${itemId}:`, error);
+    console.error('Error fetching suggestions:', error);
     return [];
   }
 };
