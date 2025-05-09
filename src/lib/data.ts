@@ -91,10 +91,18 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
     // Convert the itemType to API type format
     const apiType = itemType === 'track' ? 'track' : 'arena';
     
-    // Use absolute URL for server components and relative URL for client components
-    const baseUrl = typeof window === 'undefined' 
-      ? 'http://localhost:9002' // Server-side (use your actual domain in production)
-      : '';
+    // Determine the base URL based on environment and rendering context
+    let baseUrl = '';
+    
+    // Check if this is production environment
+    if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod') {
+      baseUrl = process.env.NEXT_PUBLIC_PROD_URL || 'https://adelansari.github.io/tk2-track-namer/';
+    } 
+    // Server-side rendering in development
+    else if (typeof window === 'undefined') {
+      baseUrl = 'http://localhost:3000';
+    }
+    // For client-side in development, we use relative URLs so baseUrl remains empty
     
     const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}`);
     
