@@ -5,6 +5,10 @@ import { ItemCard } from './ItemCard';
 import { fetchSuggestionsForItem } from '@/lib/data';
 import type { Track, BattleArena, ItemType } from '@/lib/types';
 
+// Keep track of the last fetch time globally to stagger requests
+let lastFetchTime = 0;
+const STAGGER_DELAY = 700; // 700ms delay between requests
+
 interface ItemCardWithSuggestionsProps {
   item: Track | BattleArena;
   itemType: ItemType;
@@ -17,7 +21,21 @@ export function ItemCardWithSuggestions({ item, itemType }: ItemCardWithSuggesti
   useEffect(() => {
     async function getSuggestions() {
       setIsLoading(true);
+      
       try {
+        // Calculate how long to wait before making the request
+        const now = Date.now();
+        const timeToWait = Math.max(0, lastFetchTime + STAGGER_DELAY - now);
+        
+        // Wait for the calculated time before fetching
+        if (timeToWait > 0) {
+          await new Promise(resolve => setTimeout(resolve, timeToWait));
+        }
+        
+        // Update the last fetch time
+        lastFetchTime = Date.now();
+        
+        // Now fetch the suggestions
         const suggestions = await fetchSuggestionsForItem(item.id, itemType);
         setItemWithSuggestions({
           ...item,
