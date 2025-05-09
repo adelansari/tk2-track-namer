@@ -87,115 +87,72 @@ export const updateUserProfile = async (userId: string, displayName: string): Pr
 // --- Suggestion Functions ---
 // Fetch suggestions from database
 export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType): Promise<Suggestion[]> => {
-  // Maximum number of retry attempts
-  const maxRetries = 2;
-  let retryCount = 0;
-  
-  while (retryCount <= maxRetries) {
-    try {
-      // Convert the itemType to API type format
-      const apiType = itemType === 'track' ? 'track' : 'arena';
-      
-      // Only skip API calls during actual build phase, not during runtime in production
-      const isBuildTime = typeof process !== 'undefined' && 
-                          process.env.NODE_ENV === 'production' && 
-                          typeof window === 'undefined' && 
-                          process.env.NEXT_PHASE === 'phase-production-build';
-      
-      if (isBuildTime) {
-        console.log(`[Build] Skipping API fetch for ${apiType} ${itemId}`);
-        return [];
-      }
-      
-      // Determine the base URL
-      let baseUrl = '';
-      
-      // In browser environment, we use relative URLs
-      if (typeof window !== 'undefined') {
-        // We're in the browser, use relative URL - no baseUrl needed
-      }
-      // In server environment (but not during build) we need absolute URLs
-      else {
-        // For production SSR
-        if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod') {
-          baseUrl = process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app';
-        } else {
-          // For development SSR
-          baseUrl = 'http://localhost:3000';
-        }
-      }
-      
-      const url = `${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}`;
-      
-      // Add timestamp to prevent caching
-      const timestamp = new Date().getTime();
-      const finalUrl = `${url}${url.includes('?') ? '&' : '?'}_t=${timestamp}`;
-      
-      const response = await fetch(finalUrl, {
-        // Ensure we're not using cached responses
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'No response body');
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { message: errorText };
-        }
-        
-        // Check if we should retry
-        if (retryCount < maxRetries && (response.status === 500 || response.status === 503)) {
-          console.log(`Retry ${retryCount+1}/${maxRetries} fetching suggestions for ${itemType} ${itemId}`);
-          retryCount++;
-          
-          // Exponential backoff: 1s, 2s, 4s...
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount-1)));
-          continue;
-        }
-        
-        // If we've exhausted retries or it's not a retriable error, throw
-        throw new Error(`Failed to fetch suggestions: ${response.status} - ${errorData?.message || errorData?.error || 'Unknown error'}`);
-      }
-
-      const data = await response.json();
-      
-      if (!data.suggestions || !Array.isArray(data.suggestions)) {
-        console.warn("Invalid data format received for suggestions:", data);
-        return [];
-      }
-      
-      return data.suggestions.map((suggestion: any) => ({
-        id: suggestion.id.toString(),
-        itemId: suggestion.item_id,
-        userId: suggestion.user_id,
-        userName: suggestion.user_display_name || 'Anonymous User',
-        text: suggestion.name,
-        votes: suggestion.votes || 0,
-        createdAt: new Date(suggestion.created_at),
-      }));
-    } catch (error) {
-      if (retryCount < maxRetries) {
-        console.log(`Retry ${retryCount+1}/${maxRetries} after error fetching suggestions for ${itemType} ${itemId}`);
-        retryCount++;
-        
-        // Exponential backoff: 1s, 2s, 4s...
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount-1)));
-        continue;
-      }
-      
-      // If we've exhausted retries, log and return empty array
-      console.error(`Error fetching suggestions for ${itemType} ${itemId} after ${maxRetries} retries:`, error);
+  try {
+    // Convert the itemType to API type format
+    const apiType = itemType === 'track' ? 'track' : 'arena';
+    
+    // Only skip API calls during build phase
+    const isBuildTime = typeof process !== 'undefined' && 
+                        process.env.NODE_ENV === 'production' && 
+                        typeof window === 'undefined' && 
+                        process.env.NEXT_PHASE === 'phase-production-build';
+    
+    if (isBuildTime) {
+      console.log(`[Build] Skipping API fetch for ${apiType} ${itemId}`);
       return [];
     }
+    
+    // Determine the base URL
+    let baseUrl = '';
+    
+    // In browser environment, we use relative URLs
+    if (typeof window !== 'undefined') {
+      // We're in the browser, use relative URL - no baseUrl needed
+    }
+    // In server environment we need absolute URLs
+    else {
+      // For production SSR
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod') {
+        baseUrl = process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app';
+      } else {
+        // For development SSR
+        baseUrl = 'http://localhost:3000';
+      }
+    }
+    
+    // Simple cache buster to prevent stale data
+    const timestamp = Date.now();
+    const url = `${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}&t=${timestamp}`;
+    
+    const response = await fetch(url, {
+      // Ensure we're not using cached responses
+      cache: 'no-store'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch suggestions: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.suggestions || !Array.isArray(data.suggestions)) {
+      console.error("Invalid data format received for suggestions");
+      return [];
+    }
+    
+    return data.suggestions.map((suggestion: any) => ({
+      id: suggestion.id.toString(),
+      itemId: suggestion.item_id,
+      userId: suggestion.user_id,
+      userName: suggestion.user_display_name || 'Anonymous User',
+      text: suggestion.name,
+      votes: suggestion.votes || 0,
+      createdAt: new Date(suggestion.created_at),
+    }));
+  } catch (error) {
+    console.error(`Error fetching suggestions for ${itemType} ${itemId}:`, error);
+    return [];
   }
-  
-  // This should never be reached due to returns in the loop, but TypeScript needs it
-  return [];
 };
 
 // Add suggestion

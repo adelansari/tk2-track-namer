@@ -11,14 +11,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const offset = (page - 1) * limit;
 
-    // Validate parameters
-    if (!['track', 'arena', 'all'].includes(type)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid type parameter' },
-        { status: 400 }
-      );
-    }
-
     let queryText = '';
     let queryParams: any[] = [];
     
@@ -84,37 +76,30 @@ export async function GET(request: NextRequest) {
     queryText += ' LIMIT $' + (queryParams.length + 1) + ' OFFSET $' + (queryParams.length + 2);
     queryParams.push(limit, offset);
     
-    // Execute the main query first
+    // Execute the query
     const result = await query(queryText, queryParams);
     
-    // Get total count for pagination - refactored to be more robust
+    // Get count - simplified approach
     let totalItems = 0;
-    
     try {
-      // Simplified count approach - separate queries for better reliability
       if (type === 'track' || type === 'all') {
-        const trackCountQuery = `
-          SELECT COUNT(*) as count FROM track_suggestions
-          ${itemId ? ' WHERE track_id = $1' : ''}
-        `;
-        const trackCountResult = await query(trackCountQuery, itemId ? [itemId] : []);
-        const trackCount = parseInt(trackCountResult.rows?.[0]?.count || '0', 10);
-        totalItems += trackCount;
+        const trackCountResult = await query(
+          `SELECT COUNT(*) as count FROM track_suggestions ${itemId ? 'WHERE track_id = $1' : ''}`,
+          itemId ? [itemId] : []
+        );
+        totalItems += parseInt(trackCountResult.rows[0].count || '0', 10);
       }
       
       if (type === 'arena' || type === 'all') {
-        const arenaCountQuery = `
-          SELECT COUNT(*) as count FROM arena_suggestions
-          ${itemId ? ' WHERE arena_id = $1' : ''}
-        `;
-        const arenaCountResult = await query(arenaCountQuery, itemId ? [itemId] : []);
-        const arenaCount = parseInt(arenaCountResult.rows?.[0]?.count || '0', 10);
-        totalItems += arenaCount;
+        const arenaCountResult = await query(
+          `SELECT COUNT(*) as count FROM arena_suggestions ${itemId ? 'WHERE arena_id = $1' : ''}`,
+          itemId ? [itemId] : []
+        );
+        totalItems += parseInt(arenaCountResult.rows[0].count || '0', 10);
       }
-    } catch (countError) {
-      console.error('Error counting suggestions:', countError);
-      // Continue with the response even if the count fails
-      // Just use the length of the results for pagination in this case
+    } catch (err) {
+      // If count query fails, just use the result length as total
+      console.error('Error counting suggestions:', err);
       totalItems = result.rows.length;
     }
     
@@ -128,15 +113,10 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(totalItems / limit)
       }
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching suggestions:', error);
-    // Return more detailed error information for debugging
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Failed to fetch suggestions',
-        error: error.message || 'Unknown error' 
-      },
+      { success: false, message: 'Failed to fetch suggestions' },
       { status: 500 }
     );
   }
@@ -193,14 +173,10 @@ export async function POST(request: NextRequest) {
       message: 'Suggestion created successfully',
       suggestion: result.rows[0]
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating suggestion:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Failed to create suggestion',
-        error: error.message || 'Unknown error'
-      },
+      { success: false, message: 'Failed to create suggestion' },
       { status: 500 }
     );
   }
