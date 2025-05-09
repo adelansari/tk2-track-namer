@@ -10,12 +10,22 @@ export default async function TracksPage() {
   // Fetch suggestion counts for all tracks
   for (const track of tracks) {
     try {
+      console.log(`[TracksPage] Fetching suggestions for ${track.id}`);
       const suggestions = await fetchSuggestionsForItem(track.id, 'track');
       track.suggestions = suggestions;
+      console.log(`[TracksPage] Track ${track.id} has ${suggestions.length} suggestions`);
     } catch (error) {
       console.error(`Error fetching suggestions for track ${track.id}:`, error);
       track.suggestions = [];
     }
+  }
+
+  // Log the final tracks data to verify suggestions are attached
+  console.log(`[TracksPage] Prepared ${tracks.length} tracks with suggestion data`);
+  // Check a specific track that should have suggestions
+  const track05 = tracks.find(t => t.id === 'track-05');
+  if (track05) {
+    console.log(`[TracksPage] Track-05 has ${track05.suggestions.length} suggestions`);
   }
 
   return (
@@ -33,7 +43,11 @@ export default async function TracksPage() {
       <Separator />
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {tracks.map(track => (
-          <ItemCard key={track.id} item={track} itemType="track" />
+          <ItemCard 
+            key={track.id} 
+            item={track} 
+            itemType="track" 
+          />
         ))}
       </div>
     </div>

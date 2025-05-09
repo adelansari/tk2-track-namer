@@ -14,6 +14,9 @@ export function ItemCard({ item, itemType }: ItemCardProps) {
   const link = `/${itemType === 'track' ? 'tracks' : 'battle-arenas'}/${item.id}`;
   const title = item.name || `${itemType === 'track' ? 'Track' : 'Arena'} ${String(item.numericId).padStart(2, '0')}`;
   
+  // Add debugging for suggestion data
+  console.log(`[ItemCard] ${item.id} has ${item.suggestions?.length || 0} suggestions`);
+  
   // Check if the item name is a default Arena name (e.g. "Arena 01") which isn't a real official name
   const isDefaultArenaName = itemType === 'battle-arena' && item.name?.startsWith('Arena ');
   
