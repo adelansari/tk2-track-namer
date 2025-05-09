@@ -1,7 +1,5 @@
 import type {NextConfig} from 'next';
 
-const isProd = process.env.NODE_ENV === "production";
-
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
@@ -11,7 +9,6 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -21,10 +18,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  output: 'export',
-  basePath: isProd ? "/tk2-track-namer" : "",
-  assetPrefix: isProd ? "/tk2-track-namer/" : "",
-
 };
 
 export default nextConfig;
