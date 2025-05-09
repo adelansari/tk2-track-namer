@@ -11,7 +11,7 @@ export default function HomePage() {
       <section className="text-center">
         <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Welcome to TrackNamer!</h2>
         <p className="mt-4 text-lg text-muted-foreground">
-          Help us name the tracks and battle arenas for our new kart racing game.
+          Help us name the tracks and battle arenas for The Karters 2.
         </p>
       </section>
 

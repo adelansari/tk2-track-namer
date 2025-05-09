@@ -28,7 +28,7 @@ export default function ProfilePage() {
           <h2 className="text-2xl font-semibold mb-4">Your Suggestions</h2>
           <div className="bg-card rounded-lg shadow p-6">
             <p className="text-muted-foreground">
-              You can view and manage all your track and battle arena name suggestions on their respective pages.
+              I am too lazy to implement this.
             </p>
           </div>
         </section>

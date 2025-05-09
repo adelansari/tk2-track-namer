@@ -36,7 +36,7 @@ export default async function TrackDetailPage({ params }: TrackDetailPageProps) 
     <div className="space-y-8">
       <Breadcrumbs segments={[
         { href: '/tracks', label: 'Racing Tracks' },
-        { label: title }
+        { href: '#', label: title }
       ]} />
       
       <Card className="overflow-hidden">

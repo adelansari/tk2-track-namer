@@ -36,7 +36,7 @@ export default async function BattleArenaDetailPage({ params }: BattleArenaDetai
       <Breadcrumbs
         segments={[
           { href: '/battle-arenas', label: 'Battle Arenas' },
-          { label: title }
+          { href: '#', label: title }
         ]}
       />
       
