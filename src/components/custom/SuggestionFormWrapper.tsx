@@ -34,8 +34,10 @@ export function SuggestionFormWrapper({ itemId, itemType, initialSuggestions = [
 
   // Fetch suggestions from the database when component mounts or when dependencies change
   useEffect(() => {
+    console.log("[SuggestionFormWrapper] Initializing with suggestions:", initialSuggestions?.length || 0);
+    
     // If we have initial suggestions passed from server, use those first
-    if (initialSuggestions.length > 0) {
+    if (initialSuggestions && initialSuggestions.length > 0) {
       setSuggestions(initialSuggestions);
       setLoading(false);
       return;
@@ -45,11 +47,13 @@ export function SuggestionFormWrapper({ itemId, itemType, initialSuggestions = [
     const fetchData = async () => {
       setLoading(true);
       try {
+        console.log(`[SuggestionFormWrapper] Fetching suggestions for ${itemType} ${itemId}`);
         const data = await fetchSuggestionsForItem(itemId, itemType);
+        console.log(`[SuggestionFormWrapper] Fetched ${data.length} suggestions`);
         setSuggestions(data);
         setError(null);
       } catch (err) {
-        console.error('Error fetching suggestions:', err);
+        console.error('[SuggestionFormWrapper] Error fetching suggestions:', err);
         setError('Failed to load suggestions. Please try again later.');
       } finally {
         setLoading(false);

@@ -57,8 +57,27 @@ export function SuggestionList({
   const [voteInProgress, setVoteInProgress] = useState<string | null>(null);
   const [userVotes, setUserVotes] = useState<Record<string, 'upvote' | null>>({});
 
+  // Use effect to fetch suggestions if none are provided
+  useEffect(() => {
+    // Immediately log the state of suggestions for debugging
+    console.log("[SuggestionList] Initial suggestions:", initialSuggestions.length, initialSuggestions);
+    
+    // If we have suggestions in props, use them
+    if (initialSuggestions && initialSuggestions.length > 0) {
+      setSuggestions(initialSuggestions);
+      return;
+    }
+
+    // If no initial suggestions, fetch them
+    if (initialSuggestions.length === 0) {
+      console.log("[SuggestionList] No initial suggestions, fetching from API");
+      refreshSuggestions();
+    }
+  }, [itemId, itemType]);  // Only run on mount and when item changes
+
   useEffect(() => {
     setSuggestions(initialSuggestions);
+    console.log("[SuggestionList] Updated initialSuggestions:", initialSuggestions.length);
   }, [initialSuggestions]);
 
   // Load user's existing votes when component mounts
