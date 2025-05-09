@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { CheckCircle2 } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
+import type { Suggestion } from '@/lib/types';
 
 interface TrackDetailPageProps {
   params: Promise<{ id: string }> | { id: string };
@@ -21,8 +22,9 @@ export default async function TrackDetailPage({ params }: TrackDetailPageProps) 
   }
   
   // Fetch actual suggestions for this track
+  let suggestions: Suggestion[] = [];
   try {
-    const suggestions = await fetchSuggestionsForItem(track.id, 'track');
+    suggestions = await fetchSuggestionsForItem(track.id, 'track');
     track.suggestions = suggestions;
   } catch (error) {
     console.error(`Error fetching suggestions for track ${track.id}:`, error);
@@ -73,7 +75,11 @@ export default async function TrackDetailPage({ params }: TrackDetailPageProps) 
 
       <Card>
         <CardContent className="p-6">
-          <SuggestionFormWrapper itemId={track.id} itemType="track" />
+          <SuggestionFormWrapper 
+            itemId={track.id} 
+            itemType="track"
+            initialSuggestions={suggestions} 
+          />
         </CardContent>
       </Card>
     </div>
