@@ -91,12 +91,21 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
     // Convert the itemType to API type format
     const apiType = itemType === 'track' ? 'track' : 'arena';
     
+    // Check if we're in a build/SSG context
+    const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && process.env.NEXT_PHASE === 'phase-production-build';
+    
+    // During build time, return empty array to avoid connection errors
+    if (isBuildTime) {
+      console.log(`[Build] Skipping API fetch for ${apiType} ${itemId}`);
+      return [];
+    }
+    
     // Determine the base URL based on environment and rendering context
     let baseUrl = '';
     
     // Check if this is production environment
     if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod') {
-      baseUrl = process.env.NEXT_PUBLIC_PROD_URL || 'https://adelansari.github.io/tk2-track-namer/';
+      baseUrl = process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app';
     } 
     // Server-side rendering in development
     else if (typeof window === 'undefined') {
