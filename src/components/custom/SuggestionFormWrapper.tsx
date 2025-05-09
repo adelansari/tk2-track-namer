@@ -34,10 +34,11 @@ export function SuggestionFormWrapper({ itemId, itemType, initialSuggestions = [
 
   // Fetch suggestions from the database when component mounts or when dependencies change
   useEffect(() => {
-    console.log("[SuggestionFormWrapper] Initializing with suggestions:", initialSuggestions?.length || 0);
+    console.log(`[SuggestionFormWrapper] Initializing with itemId: ${itemId}, type: ${itemType}, initialSuggestions: ${initialSuggestions?.length || 0}`);
     
     // If we have initial suggestions passed from server, use those first
     if (initialSuggestions && initialSuggestions.length > 0) {
+      console.log(`[SuggestionFormWrapper] Using ${initialSuggestions.length} server-provided suggestions`);
       setSuggestions(initialSuggestions);
       setLoading(false);
       return;
@@ -83,11 +84,6 @@ export function SuggestionFormWrapper({ itemId, itemType, initialSuggestions = [
     setEditingSuggestion(suggestion);
     setIsEditDialogOpen(true);
   };
-
-  // Debug logging to help diagnose issues
-  useEffect(() => {
-    console.log("Current suggestions:", suggestions.length, suggestions);
-  }, [suggestions]);
 
   return (
     <div className="space-y-6 py-2">

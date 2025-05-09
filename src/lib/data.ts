@@ -102,34 +102,25 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
       return [];
     }
     
-    // Determine the base URL based on environment
+    // Determine the base URL
     let baseUrl = '';
-    const isClient = typeof window !== 'undefined';
-    const isProduction = process.env.NODE_ENV === 'production';
-    
-    // Log detailed environment information for debugging
-    console.log(`[fetchSuggestionsForItem] Environment: isClient=${isClient}, isProduction=${isProduction}, NEXT_PUBLIC_ENVIRONMENT=${process.env.NEXT_PUBLIC_ENVIRONMENT}`);
     
     // In browser environment, we use relative URLs
-    if (isClient) {
+    if (typeof window !== 'undefined') {
       // We're in the browser, use relative URL - no baseUrl needed
-      console.log("[fetchSuggestionsForItem] Client-side request, using relative URL");
     }
     // In server environment (but not during build) we need absolute URLs
     else {
       // For production SSR
       if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod') {
         baseUrl = process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app';
-        console.log(`[fetchSuggestionsForItem] Server-side production request, using base URL: ${baseUrl}`);
       } else {
         // For development SSR
         baseUrl = 'http://localhost:3000';
-        console.log(`[fetchSuggestionsForItem] Server-side development request, using base URL: ${baseUrl}`);
       }
     }
     
     const url = `${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}`;
-    console.log(`[fetchSuggestionsForItem] Fetching from: ${url}`);
     
     const response = await fetch(url, {
       // Ensure we're not using cached responses
@@ -140,14 +131,13 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
     });
     
     if (!response.ok) {
-      throw new Error(`Failed to fetch suggestions: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to fetch suggestions: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log(`[fetchSuggestionsForItem] Received ${data.suggestions?.length || 0} suggestions for ${apiType} ${itemId}`);
     
     if (!data.suggestions || !Array.isArray(data.suggestions)) {
-      console.error("[fetchSuggestionsForItem] Invalid data format received:", data);
+      console.error("Invalid data format received for suggestions");
       return [];
     }
     
@@ -161,35 +151,7 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
       createdAt: new Date(suggestion.created_at),
     }));
   } catch (error) {
-    console.error(`[fetchSuggestionsForItem] Error fetching suggestions for ${itemType} ${itemId}:`, error);
-    // Try to fall back to client-side fetching if we're in the browser
-    if (typeof window !== 'undefined' && itemId && itemType) {
-      try {
-        console.log(`[fetchSuggestionsForItem] Attempting direct client-side fallback fetch`);
-        const fallbackResponse = await fetch(`/api/suggestions?type=${itemType === 'track' ? 'track' : 'arena'}&itemId=${itemId}`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache'
-          }
-        });
-        
-        if (fallbackResponse.ok) {
-          const data = await fallbackResponse.json();
-          console.log(`[fetchSuggestionsForItem] Fallback successful, got ${data.suggestions?.length || 0} suggestions`);
-          return data.suggestions.map((suggestion: any) => ({
-            id: suggestion.id.toString(),
-            itemId: suggestion.item_id,
-            userId: suggestion.user_id,
-            userName: suggestion.user_display_name || 'Anonymous User',
-            text: suggestion.name,
-            votes: suggestion.votes || 0,
-            createdAt: new Date(suggestion.created_at),
-          }));
-        }
-      } catch (fallbackError) {
-        console.error('[fetchSuggestionsForItem] Fallback fetch also failed:', fallbackError);
-      }
-    }
+    console.error(`Error fetching suggestions for ${itemType} ${itemId}:`, error);
     return [];
   }
 };

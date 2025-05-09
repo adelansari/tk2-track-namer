@@ -80,6 +80,15 @@ export function SuggestionList({
     console.log("[SuggestionList] Updated initialSuggestions:", initialSuggestions.length);
   }, [initialSuggestions]);
 
+  // Use effect specifically to check if we need to force a refresh when suggestions appear empty but shouldn't be
+  useEffect(() => {
+    // If we're not loading, have no suggestions in state, but DO have initialSuggestions, sync them
+    if (!isLoading && suggestions.length === 0 && initialSuggestions.length > 0) {
+      console.log("[SuggestionList] State out of sync with props, fixing...");
+      setSuggestions(initialSuggestions);
+    }
+  }, [suggestions.length, initialSuggestions.length, isLoading]);
+
   // Load user's existing votes when component mounts
   useEffect(() => {
     if (currentUser && suggestions.length > 0) {
@@ -190,25 +199,12 @@ export function SuggestionList({
     }
   };
 
-  // Modify the rendering conditional to be more resilient
-  if (!suggestions || !Array.isArray(suggestions) || suggestions.length === 0) {
-    // Force the data refresh if we don't have suggestions but we know they should exist
-    if (!isLoading && initialSuggestions.length === 0) {
-      console.log("[SuggestionList] No suggestions found. Attempting to refresh data...");
-      refreshSuggestions();
-    }
-    
-    // Show loading state if we're actively fetching
-    if (isLoading) {
-      return (
-        <div className="text-center py-8">
-          <MessageSquareText className="mx-auto h-12 w-12 text-muted-foreground animate-pulse" />
-          <p className="mt-4 text-muted-foreground">Loading suggestions...</p>
-        </div>
-      );
-    }
-    
-    // Otherwise show the "no suggestions" message
+  // Add console log for rendering to see what the component is doing
+  console.log(`[SuggestionList-Render] itemId: ${itemId}, suggestions: ${suggestions.length}, initialSuggestions: ${initialSuggestions.length}, isLoading: ${isLoading}`);
+
+  // Simple empty state check - no automatic refreshing in the render method
+  if (suggestions.length === 0) {
+    console.log(`[SuggestionList-Empty] No suggestions to display for ${itemType} ${itemId}`);
     return (
       <div className="text-center py-8">
         <MessageSquareText className="mx-auto h-12 w-12 text-muted-foreground" />
