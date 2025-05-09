@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { deleteSuggestion, voteSuggestion, fetchSuggestionsForItem, getUserVote } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
-import { Pencil, Trash2, UserCircle, MessageSquareText, ThumbsUp, ThumbsDown, Users } from 'lucide-react';
+import { Pencil, Trash2, UserCircle, MessageSquareText, ThumbsUp, Users } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -55,7 +55,7 @@ export function SuggestionList({
   const [suggestions, setSuggestions] = useState<Suggestion[]>(initialSuggestions);
   const [isLoading, setIsLoading] = useState(false);
   const [voteInProgress, setVoteInProgress] = useState<string | null>(null);
-  const [userVotes, setUserVotes] = useState<Record<string, 'upvote' | 'downvote' | null>>({});
+  const [userVotes, setUserVotes] = useState<Record<string, 'upvote' | null>>({});
 
   useEffect(() => {
     setSuggestions(initialSuggestions);
@@ -65,12 +65,13 @@ export function SuggestionList({
   useEffect(() => {
     if (currentUser && suggestions.length > 0) {
       const loadUserVotes = async () => {
-        const votes: Record<string, 'upvote' | 'downvote' | null> = {};
+        const votes: Record<string, 'upvote' | null> = {};
         
         for (const suggestion of suggestions) {
           try {
             const voteType = await getUserVote(suggestion.id, currentUser.id);
-            votes[suggestion.id] = voteType;
+            // Only consider upvotes, ignore downvotes
+            votes[suggestion.id] = voteType === 'upvote' ? voteType : null;
           } catch (error) {
             console.error(`Error fetching vote for suggestion ${suggestion.id}:`, error);
           }
@@ -121,7 +122,7 @@ export function SuggestionList({
     }
   };
   
-  const handleVote = async (suggestionId: string, action: 'upvote' | 'downvote') => {
+  const handleVote = async (suggestionId: string) => {
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to vote on suggestions.", variant: "default" });
       return;
@@ -129,22 +130,22 @@ export function SuggestionList({
     
     setVoteInProgress(suggestionId);
     try {
-      const success = await voteSuggestion(suggestionId, action, currentUser.id);
+      const success = await voteSuggestion(suggestionId, 'upvote', currentUser.id);
       
       if (success) {
         // Update the local userVotes state to show immediate UI feedback
         setUserVotes(prev => ({
           ...prev,
-          [suggestionId]: action
+          [suggestionId]: 'upvote'
         }));
         
         await refreshSuggestions();
         toast({ 
-          title: action === 'upvote' ? "Upvoted!" : "Downvoted!", 
-          description: `You ${action === 'upvote' ? 'upvoted' : 'downvoted'} this suggestion.` 
+          title: "Upvoted!", 
+          description: "You upvoted this suggestion." 
         });
       } else {
-        toast({ title: "Error", description: "Failed to vote on suggestion.", variant: "destructive" });
+        toast({ title: "Error", description: "You can only upvote once!", variant: "destructive" });
       }
     } catch (error) {
       console.error('Error voting on suggestion:', error);
@@ -152,11 +153,6 @@ export function SuggestionList({
     } finally {
       setVoteInProgress(null);
     }
-  };
-
-  // Calculate number of voters (absolute value of votes to get total participants)
-  const calculateVoterCount = (votes: number) => {
-    return Math.abs(votes);
   };
 
   if (suggestions.length === 0) {
@@ -203,7 +199,7 @@ export function SuggestionList({
                         <Button 
                           variant={userVotes[suggestion.id] === 'upvote' ? "default" : "ghost"}
                           size="icon" 
-                          onClick={() => handleVote(suggestion.id, 'upvote')}
+                          onClick={() => handleVote(suggestion.id)}
                           disabled={voteInProgress === suggestion.id || !currentUser || isLoading}
                           className={`h-8 w-8 ${userVotes[suggestion.id] === 'upvote' ? "bg-green-600 hover:bg-green-700" : ""}`}
                         >
@@ -218,30 +214,7 @@ export function SuggestionList({
                   
                   <div className="flex flex-col items-center min-w-[40px]">
                     <span className="font-medium">{suggestion.votes || 0}</span>
-                    <div className="flex items-center text-xs text-muted-foreground">
-                      <Users className="h-3 w-3 mr-1" />
-                      <span>{calculateVoterCount(suggestion.votes || 0)}</span>
-                    </div>
                   </div>
-                  
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant={userVotes[suggestion.id] === 'downvote' ? "default" : "ghost"} 
-                          size="icon" 
-                          onClick={() => handleVote(suggestion.id, 'downvote')}
-                          disabled={voteInProgress === suggestion.id || !currentUser || isLoading}
-                          className={`h-8 w-8 ${userVotes[suggestion.id] === 'downvote' ? "bg-red-600 hover:bg-red-700" : ""}`}
-                        >
-                          <ThumbsDown className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Downvote this suggestion</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                 </div>
               </TableCell>
               <TableCell className="text-right">

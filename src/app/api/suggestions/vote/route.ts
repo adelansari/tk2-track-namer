@@ -30,9 +30,10 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    if (action !== 'upvote' && action !== 'downvote') {
+    // Only allow upvote action
+    if (action !== 'upvote') {
       return NextResponse.json(
-        { success: false, message: 'Invalid action. Must be "upvote" or "downvote"' },
+        { success: false, message: 'Invalid action. Only "upvote" is supported' },
         { status: 400 }
       );
     }
@@ -54,84 +55,35 @@ export async function POST(request: NextRequest) {
     );
 
     if (existingVoteResult.rows.length > 0) {
-      const existingVote = existingVoteResult.rows[0];
-      const existingVoteType = existingVote.vote_type;
-      
-      // If trying to vote the same way again, return error
-      if ((action === 'upvote' && existingVoteType === 1) || 
-          (action === 'downvote' && existingVoteType === -1)) {
-        return NextResponse.json({
-          success: false,
-          message: `You have already ${action === 'upvote' ? 'upvoted' : 'downvoted'} this suggestion`
-        }, { status: 400 });
-      }
-      
-      // If changing vote (e.g., from upvote to downvote), update both tables
-      const voteChange = action === 'upvote' ? 2 : -2; // Double effect: remove old vote and add new one
-      
-      // Begin transaction
-      await query('BEGIN');
-      
-      try {
-        // Update vote record
-        await query(
-          'UPDATE user_votes SET vote_type = $1, created_at = NOW() WHERE id = $2',
-          [action === 'upvote' ? 1 : -1, existingVote.id]
-        );
-        
-        // Update suggestion vote count
-        let result;
-        if (type === 'track') {
-          result = await query(
-            'UPDATE track_suggestions SET votes = votes + $1 WHERE id = $2 RETURNING *',
-            [voteChange, id]
-          );
-        } else {
-          result = await query(
-            'UPDATE arena_suggestions SET votes = votes + $1 WHERE id = $2 RETURNING *',
-            [voteChange, id]
-          );
-        }
-        
-        // Commit transaction
-        await query('COMMIT');
-        
-        return NextResponse.json({
-          success: true,
-          message: `Vote changed to ${action === 'upvote' ? 'upvote' : 'downvote'} successfully`,
-          suggestion: result.rows[0]
-        });
-      } catch (error) {
-        // Rollback in case of error
-        await query('ROLLBACK');
-        throw error;
-      }
+      // User already voted, don't allow duplicate votes
+      return NextResponse.json({
+        success: false,
+        message: 'You have already voted on this suggestion'
+      }, { status: 400 });
     }
     
     // If no existing vote, create new vote record and update suggestion
-    const voteValue = action === 'upvote' ? 1 : -1;
-    
     // Begin transaction
     await query('BEGIN');
     
     try {
-      // Create vote record
+      // Create vote record - always vote_type = 1 for upvote
       await query(
         'INSERT INTO user_votes (user_id, suggestion_id, suggestion_type, vote_type) VALUES ($1, $2, $3, $4)',
-        [user_id, id, type, voteValue]
+        [user_id, id, type, 1]
       );
       
-      // Update suggestion votes
+      // Update suggestion votes - always increment by 1
       let result;
       if (type === 'track') {
         result = await query(
-          'UPDATE track_suggestions SET votes = votes + $1 WHERE id = $2 RETURNING *',
-          [voteValue, id]
+          'UPDATE track_suggestions SET votes = votes + 1 WHERE id = $1 RETURNING *',
+          [id]
         );
       } else {
         result = await query(
-          'UPDATE arena_suggestions SET votes = votes + $1 WHERE id = $2 RETURNING *',
-          [voteValue, id]
+          'UPDATE arena_suggestions SET votes = votes + 1 WHERE id = $1 RETURNING *',
+          [id]
         );
       }
       
@@ -140,7 +92,7 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json({
         success: true,
-        message: `${action === 'upvote' ? 'Upvoted' : 'Downvoted'} successfully`,
+        message: 'Upvoted successfully',
         suggestion: result.rows[0]
       });
     } catch (error) {

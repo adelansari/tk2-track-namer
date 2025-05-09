@@ -242,7 +242,7 @@ export const deleteSuggestion = async (suggestionId: string, userId: string): Pr
 };
 
 // Vote on suggestion
-export const voteSuggestion = async (suggestionId: string, action: 'upvote' | 'downvote', userId: string): Promise<boolean> => {
+export const voteSuggestion = async (suggestionId: string, action: 'upvote', userId: string): Promise<boolean> => {
   try {
     const response = await fetch('/api/suggestions/vote', {
       method: 'POST',
@@ -251,7 +251,7 @@ export const voteSuggestion = async (suggestionId: string, action: 'upvote' | 'd
       },
       body: JSON.stringify({
         id: suggestionId,
-        action,
+        action: 'upvote', // Only upvote is supported
         user_id: userId
       }),
     });
@@ -271,7 +271,7 @@ export const voteSuggestion = async (suggestionId: string, action: 'upvote' | 'd
 };
 
 // Get a user's vote on a specific suggestion
-export const getUserVote = async (suggestionId: string, userId: string): Promise<'upvote' | 'downvote' | null> => {
+export const getUserVote = async (suggestionId: string, userId: string): Promise<'upvote' | null> => {
   try {
     const response = await fetch(`/api/suggestions/vote/status?suggestion_id=${suggestionId}&user_id=${userId}`);
     
@@ -281,7 +281,7 @@ export const getUserVote = async (suggestionId: string, userId: string): Promise
     
     const data = await response.json();
     if (data.success && data.vote) {
-      return data.vote.vote_type === 1 ? 'upvote' : 'downvote';
+      return data.vote.vote_type === 1 ? 'upvote' : null;
     }
     
     return null;
