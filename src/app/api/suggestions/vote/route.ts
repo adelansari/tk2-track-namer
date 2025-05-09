@@ -54,47 +54,72 @@ export async function POST(request: NextRequest) {
       [user_id, id, type]
     );
 
-    if (existingVoteResult.rows.length > 0) {
-      // User already voted, don't allow duplicate votes
-      return NextResponse.json({
-        success: false,
-        message: 'You have already voted on this suggestion'
-      }, { status: 400 });
-    }
-    
-    // If no existing vote, create new vote record and update suggestion
     // Begin transaction
     await query('BEGIN');
     
     try {
-      // Create vote record - always vote_type = 1 for upvote
-      await query(
-        'INSERT INTO user_votes (user_id, suggestion_id, suggestion_type, vote_type) VALUES ($1, $2, $3, $4)',
-        [user_id, id, type, 1]
-      );
-      
-      // Update suggestion votes - always increment by 1
       let result;
-      if (type === 'track') {
-        result = await query(
-          'UPDATE track_suggestions SET votes = votes + 1 WHERE id = $1 RETURNING *',
-          [id]
+      
+      // If user already voted, remove the vote (toggle functionality)
+      if (existingVoteResult.rows.length > 0) {
+        // Delete the vote record
+        await query(
+          'DELETE FROM user_votes WHERE user_id = $1 AND suggestion_id = $2 AND suggestion_type = $3',
+          [user_id, id, type]
         );
+        
+        // Decrement vote count
+        if (type === 'track') {
+          result = await query(
+            'UPDATE track_suggestions SET votes = votes - 1 WHERE id = $1 RETURNING *',
+            [id]
+          );
+        } else {
+          result = await query(
+            'UPDATE arena_suggestions SET votes = votes - 1 WHERE id = $1 RETURNING *',
+            [id]
+          );
+        }
+        
+        // Commit transaction
+        await query('COMMIT');
+        
+        return NextResponse.json({
+          success: true,
+          message: 'Vote removed successfully',
+          suggestion: result.rows[0],
+          action: 'removed'
+        });
       } else {
-        result = await query(
-          'UPDATE arena_suggestions SET votes = votes + 1 WHERE id = $1 RETURNING *',
-          [id]
+        // Add new vote
+        await query(
+          'INSERT INTO user_votes (user_id, suggestion_id, suggestion_type, vote_type) VALUES ($1, $2, $3, $4)',
+          [user_id, id, type, 1]
         );
+        
+        // Update suggestion votes - increment by 1
+        if (type === 'track') {
+          result = await query(
+            'UPDATE track_suggestions SET votes = votes + 1 WHERE id = $1 RETURNING *',
+            [id]
+          );
+        } else {
+          result = await query(
+            'UPDATE arena_suggestions SET votes = votes + 1 WHERE id = $1 RETURNING *',
+            [id]
+          );
+        }
+        
+        // Commit transaction
+        await query('COMMIT');
+        
+        return NextResponse.json({
+          success: true,
+          message: 'Upvoted successfully',
+          suggestion: result.rows[0],
+          action: 'added'
+        });
       }
-      
-      // Commit transaction
-      await query('COMMIT');
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Upvoted successfully',
-        suggestion: result.rows[0]
-      });
     } catch (error) {
       // Rollback in case of error
       await query('ROLLBACK');

@@ -130,22 +130,38 @@ export function SuggestionList({
     
     setVoteInProgress(suggestionId);
     try {
-      const success = await voteSuggestion(suggestionId, 'upvote', currentUser.id);
+      const result = await voteSuggestion(suggestionId, 'upvote', currentUser.id);
       
-      if (success) {
-        // Update the local userVotes state to show immediate UI feedback
-        setUserVotes(prev => ({
-          ...prev,
-          [suggestionId]: 'upvote'
-        }));
+      if (result.success) {
+        // Update the local userVotes state based on the action returned from the API
+        if (result.action === 'added') {
+          // Vote was added
+          setUserVotes(prev => ({
+            ...prev,
+            [suggestionId]: 'upvote'
+          }));
+          
+          toast({ 
+            title: "Upvoted!", 
+            description: "You upvoted this suggestion." 
+          });
+        } else if (result.action === 'removed') {
+          // Vote was removed
+          setUserVotes(prev => ({
+            ...prev,
+            [suggestionId]: null
+          }));
+          
+          toast({ 
+            title: "Vote Removed", 
+            description: "Your vote has been removed." 
+          });
+        }
         
+        // Refresh suggestions to update the vote count
         await refreshSuggestions();
-        toast({ 
-          title: "Upvoted!", 
-          description: "You upvoted this suggestion." 
-        });
       } else {
-        toast({ title: "Error", description: "You can only upvote once!", variant: "destructive" });
+        toast({ title: "Error", description: "Failed to process your vote.", variant: "destructive" });
       }
     } catch (error) {
       console.error('Error voting on suggestion:', error);

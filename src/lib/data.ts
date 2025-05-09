@@ -258,7 +258,7 @@ export const deleteSuggestion = async (suggestionId: string, userId: string): Pr
 };
 
 // Vote on suggestion
-export const voteSuggestion = async (suggestionId: string, action: 'upvote', userId: string): Promise<boolean> => {
+export const voteSuggestion = async (suggestionId: string, action: 'upvote', userId: string): Promise<{ success: boolean, action?: 'added' | 'removed' }> => {
   try {
     const response = await fetch('/api/suggestions/vote', {
       method: 'POST',
@@ -275,14 +275,17 @@ export const voteSuggestion = async (suggestionId: string, action: 'upvote', use
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Error voting on suggestion:', errorData);
-      return false;
+      return { success: false };
     }
 
     const data = await response.json();
-    return data.success === true;
+    return { 
+      success: data.success === true,
+      action: data.action as 'added' | 'removed'
+    };
   } catch (error) {
     console.error('Error voting on suggestion:', error);
-    return false;
+    return { success: false };
   }
 };
 
