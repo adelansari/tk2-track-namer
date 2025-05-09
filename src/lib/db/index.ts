@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 
 // Create a connection pool
 const pool = new Pool({
-  connectionString: 'postgresql://tk2namechanger_besidehorn:6ce7d63be8c1e2696f66c8e7fb852b358a7f8461@xt9wl.h.filess.io:5433/tk2namechanger_besidehorn',
+  connectionString: process.env.NEXT_PUBLIC_FIREBASE_FILESS_DATABASE,
   ssl: false, // Disable SSL as the server doesn't support it
 });
 
