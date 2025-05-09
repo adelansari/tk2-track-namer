@@ -190,7 +190,25 @@ export function SuggestionList({
     }
   };
 
-  if (suggestions.length === 0) {
+  // Modify the rendering conditional to be more resilient
+  if (!suggestions || !Array.isArray(suggestions) || suggestions.length === 0) {
+    // Force the data refresh if we don't have suggestions but we know they should exist
+    if (!isLoading && initialSuggestions.length === 0) {
+      console.log("[SuggestionList] No suggestions found. Attempting to refresh data...");
+      refreshSuggestions();
+    }
+    
+    // Show loading state if we're actively fetching
+    if (isLoading) {
+      return (
+        <div className="text-center py-8">
+          <MessageSquareText className="mx-auto h-12 w-12 text-muted-foreground animate-pulse" />
+          <p className="mt-4 text-muted-foreground">Loading suggestions...</p>
+        </div>
+      );
+    }
+    
+    // Otherwise show the "no suggestions" message
     return (
       <div className="text-center py-8">
         <MessageSquareText className="mx-auto h-12 w-12 text-muted-foreground" />
