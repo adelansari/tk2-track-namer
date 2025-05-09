@@ -59,9 +59,6 @@ export function SuggestionList({
 
   // Use effect to fetch suggestions if none are provided
   useEffect(() => {
-    // Immediately log the state of suggestions for debugging
-    console.log("[SuggestionList] Initial suggestions:", initialSuggestions.length, initialSuggestions);
-    
     // If we have suggestions in props, use them
     if (initialSuggestions && initialSuggestions.length > 0) {
       setSuggestions(initialSuggestions);
@@ -70,21 +67,18 @@ export function SuggestionList({
 
     // If no initial suggestions, fetch them
     if (initialSuggestions.length === 0) {
-      console.log("[SuggestionList] No initial suggestions, fetching from API");
       refreshSuggestions();
     }
   }, [itemId, itemType]);  // Only run on mount and when item changes
 
   useEffect(() => {
     setSuggestions(initialSuggestions);
-    console.log("[SuggestionList] Updated initialSuggestions:", initialSuggestions.length);
   }, [initialSuggestions]);
 
   // Use effect specifically to check if we need to force a refresh when suggestions appear empty but shouldn't be
   useEffect(() => {
     // If we're not loading, have no suggestions in state, but DO have initialSuggestions, sync them
     if (!isLoading && suggestions.length === 0 && initialSuggestions.length > 0) {
-      console.log("[SuggestionList] State out of sync with props, fixing...");
       setSuggestions(initialSuggestions);
     }
   }, [suggestions.length, initialSuggestions.length, isLoading]);
@@ -199,12 +193,8 @@ export function SuggestionList({
     }
   };
 
-  // Add console log for rendering to see what the component is doing
-  console.log(`[SuggestionList-Render] itemId: ${itemId}, suggestions: ${suggestions.length}, initialSuggestions: ${initialSuggestions.length}, isLoading: ${isLoading}`);
-
   // Simple empty state check - no automatic refreshing in the render method
   if (suggestions.length === 0) {
-    console.log(`[SuggestionList-Empty] No suggestions to display for ${itemType} ${itemId}`);
     return (
       <div className="text-center py-8">
         <MessageSquareText className="mx-auto h-12 w-12 text-muted-foreground" />
