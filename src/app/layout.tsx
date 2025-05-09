@@ -1,4 +1,3 @@
-
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
@@ -21,7 +20,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'TrackNamer',
-  description: 'Suggest names for kart racing game tracks and arenas!',
+  description: 'Suggest names for "The Karters 2" tracks and arenas!',
 };
 
 export default function RootLayout({
@@ -34,7 +33,7 @@ export default function RootLayout({
       <body className={`antialiased min-h-screen flex flex-col bg-background text-foreground`}>
         <AuthProvider>
           <Header />
-          <main className="flex-grow container py-8">
+          <main className="flex-grow px-4 md:px-6 lg:px-8 py-8 max-w-screen-xl mx-auto w-full">
             {children}
           </main>
           <Toaster />
