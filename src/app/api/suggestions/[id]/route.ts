@@ -1,5 +1,6 @@
 import { query } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { getUserDisplayName } from '@/lib/firebaseAdmin';
 
 // Helper function to get suggestion by ID with its type
 async function getSuggestionWithType(id: string) {
@@ -27,13 +28,16 @@ export async function GET(
     const resolvedParams = await params;
     const id = resolvedParams.id;
     const { suggestion, type } = await getSuggestionWithType(id);
-    
-    if (!suggestion) {
+      if (!suggestion) {
       return NextResponse.json(
         { success: false, message: 'Suggestion not found' },
         { status: 404 }
       );
     }
+    
+    // Add user display name from Firebase
+    const displayName = await getUserDisplayName(suggestion.user_id);
+    suggestion.user_display_name = displayName;
     
     return NextResponse.json({
       success: true,

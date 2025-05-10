@@ -400,25 +400,6 @@ export const getBattleArenas = async (): Promise<BattleArena[]> => {
 
 export const getBattleArenaById = (id: string): BattleArena | undefined => battleArenas.find(a => a.id === id);
 
-// --- User Profile Functions ---
-export const updateUserProfile = async (userId: string, displayName: string): Promise<boolean> => {
-  try {
-    const response = await fetch(`/api/users/${userId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ display_name: displayName }),
-    });
-
-    const data = await response.json();
-    return data.success === true;
-  } catch (error) {
-    console.error('Error updating user profile:', error);
-    return false;
-  }
-};
-
 // The demo data population is kept for initial UI display
 // These are for visual placeholder only.
 const demoUser1: User = { id: 'demo-user-1', name: 'SpeedyRacerDemo' };

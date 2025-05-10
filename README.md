@@ -90,7 +90,19 @@ TrackNamer is a web application designed to crowdsource creative names for the r
 - [React](https://reactjs.org/) - Frontend JavaScript library
 - [TypeScript](https://www.typescriptlang.org/) - Typed JavaScript
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
-- [Firebase Authentication](https://firebase.google.com/products/auth) - User authentication
+- [Firebase Authentication](https://firebase.google.com/products/auth) - User authentication and profile management
+- [PostgreSQL](https://www.postgresql.org/) - Database for storing suggestions and votes
+
+## 🏗️ Architecture
+
+### User Management
+The application uses Firebase Authentication as the single source of truth for user data:
+
+- **User Authentication**: Firebase Authentication handles user sign-up, sign-in, and session management
+- **User Profiles**: User display names are stored and managed exclusively within Firebase Authentication
+- **Server-Side Integration**: Firebase Admin SDK is used on the server to retrieve user display names when needed
+
+This architecture simplifies user management by eliminating dual storage of user profile data.
 
 ## 🤝 Contributing
 

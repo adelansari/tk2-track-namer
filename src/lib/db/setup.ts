@@ -9,9 +9,9 @@ export async function setupDatabase() {
     await query(`SET search_path TO tk2namechanger_besidehorn`);
     
     // Set timezone to UTC for consistent date handling
-    await query(`SET TIME ZONE 'UTC'`);
-
-    // Create user profiles table (extending Firebase auth data)
+    await query(`SET TIME ZONE 'UTC'`);    // Create user profiles table - keeping for backward compatibility
+    // Note: We're using Firebase Auth as source of truth for user display names
+    // This table is no longer actively used but kept for reference
     await query(`
       CREATE TABLE IF NOT EXISTS tk2namechanger_besidehorn.user_profiles (
         uid VARCHAR(255) PRIMARY KEY,

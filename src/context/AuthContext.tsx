@@ -5,7 +5,6 @@ import { auth, googleProvider } from '@/lib/firebaseConfig';
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { signInWithPopup, signOut, onAuthStateChanged, updateProfile, type User as FirebaseUser } from 'firebase/auth';
-import { updateUserProfile } from '@/lib/data';
 
 interface AuthContextType {
   currentUser: AppUser | null;
@@ -68,11 +67,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!currentUser || !auth.currentUser) return false;
     
     try {
-      // Update Firebase Auth display name
+      // Update Firebase Auth display name only
       await updateProfile(auth.currentUser, { displayName: newName });
-      
-      // Update our database user profile
-      await updateUserProfile(currentUser.id, newName);
       
       // Update local state
       setCurrentUser(prev => prev ? { ...prev, name: newName } : null);

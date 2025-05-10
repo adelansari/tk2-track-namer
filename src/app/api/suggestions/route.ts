@@ -1,5 +1,6 @@
 import { query } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { getUsersDisplayNames } from '@/lib/firebaseAdmin';
 
 // GET all suggestions for tracks and arenas with pagination
 export async function GET(request: NextRequest) {
@@ -46,8 +47,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ counts });
     }
     
-    if (type === 'track' || type === 'all') {
-      queryText = `
+    if (type === 'track' || type === 'all') {      queryText = `
         SELECT 
           ts.id, 
           ts.track_id as item_id, 
@@ -55,11 +55,9 @@ export async function GET(request: NextRequest) {
           ts.votes, 
           ts.created_at, 
           ts.updated_at,
-          up.display_name as user_display_name,
           ts.user_id,
           'track' as type
         FROM track_suggestions ts
-        LEFT JOIN user_profiles up ON ts.user_id = up.uid
       `;
       
       if (itemId) {
@@ -75,8 +73,7 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    if (type === 'arena' || type === 'all') {
-      const arenaQuery = `
+    if (type === 'arena' || type === 'all') {      const arenaQuery = `
         SELECT 
           arena_sugg.id, 
           arena_sugg.arena_id as item_id, 
@@ -84,11 +81,9 @@ export async function GET(request: NextRequest) {
           arena_sugg.votes, 
           arena_sugg.created_at, 
           arena_sugg.updated_at,
-          up.display_name as user_display_name,
           arena_sugg.user_id,
           'arena' as type
         FROM arena_suggestions arena_sugg
-        LEFT JOIN user_profiles up ON arena_sugg.user_id = up.uid
       `;
       
       if (itemId) {
@@ -134,9 +129,22 @@ export async function GET(request: NextRequest) {
     queryText += ' ORDER BY votes DESC, created_at DESC';
     queryText += ' LIMIT $' + (queryParams.length + 1) + ' OFFSET $' + (queryParams.length + 2);
     queryParams.push(limit, offset);
-    
-    // Execute the query
+      // Execute the query
     const result = await query(queryText, queryParams);
+    
+    // Get user display names from Firebase if there are results
+    if (result.rows.length > 0) {
+      // Extract unique user IDs from suggestions
+      const userIds = result.rows.map((suggestion: any) => suggestion.user_id);
+      
+      // Fetch display names from Firebase
+      const displayNames = await getUsersDisplayNames(userIds);
+      
+      // Add display names to suggestions
+      result.rows.forEach((row: any) => {
+        row.user_display_name = displayNames.get(row.user_id) || 'Anonymous User';
+      });
+    }
     
     // Get total count for pagination
     let totalItems = 0;
@@ -188,16 +196,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
-    // Check if user exists in profiles
-    const userCheck = await query('SELECT * FROM user_profiles WHERE uid = $1', [user_id]);
-    if (userCheck.rows.length === 0) {
-      // Create basic user profile if it doesn't exist
-      await query(
-        'INSERT INTO user_profiles (uid, display_name, email) VALUES ($1, $2, $3)',
-        [user_id, 'Anonymous User', 'anonymous@example.com']
-      );
-    }
+      // We don't need to check user profiles anymore as we're using Firebase Auth
+    // The Firebase user ID validation will happen naturally - if an invalid ID is provided,
+    // the suggestion will still be created but the display name will fall back to 'Anonymous User'
     
     // We're no longer checking if the user has already submitted a suggestion for this item
     // Multiple suggestions from the same user are now allowed
