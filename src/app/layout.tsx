@@ -30,7 +30,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.className} ${geistMono.className}`} suppressHydrationWarning>
-      <body className={`antialiased min-h-screen flex flex-col bg-background text-foreground`}>
+      {/* Adding suppressHydrationWarning to body as well to help with the hydration error */}
+      <body className={`antialiased min-h-screen flex flex-col bg-background text-foreground`} suppressHydrationWarning>
         <AuthProvider>
           <Header />
           <main className="flex-grow px-4 md:px-6 lg:px-8 py-8 max-w-screen-xl mx-auto w-full">

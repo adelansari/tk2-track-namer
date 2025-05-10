@@ -62,9 +62,10 @@ let battleArenas: BattleArena[] = Array.from({ length: 8 }, (_, i) => {
 export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: ItemType): Promise<Map<string, number>> => {
   try {
     const apiType = itemType === 'track' ? 'track' : 'arena';
-    const isBuildTime = typeof process !== 'undefined' &&
+    // Check if we're in build time - only make this check on the server
+    const isServer = typeof window === 'undefined';
+    const isBuildTime = isServer &&
                         process.env.NODE_ENV === 'production' &&
-                        typeof window === 'undefined' &&
                         process.env.NEXT_PHASE === 'phase-production-build';
 
     if (isBuildTime) {
@@ -74,16 +75,12 @@ export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: It
       return counts;
     }
 
-    let baseUrl = '';
-    if (typeof window !== 'undefined') {
-      baseUrl = '';
-    } else {
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod') {
-        baseUrl = process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app';
-      } else {
-        baseUrl = 'http://localhost:3000';
-      }
-    }
+    // Simplified URL handling to avoid client/server differences
+    const baseUrl = isServer ? (
+      process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod' 
+        ? (process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app')
+        : 'http://localhost:3000'
+    ) : '';
 
     // Construct the query parameters for multiple item IDs
     const itemIdParams = itemIds.map(id => `itemIds=${encodeURIComponent(id)}`).join('&');
@@ -129,10 +126,12 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
     // Convert the itemType to API type format
     const apiType = itemType === 'track' ? 'track' : 'arena';
     
+    // Use consistent isServer check
+    const isServer = typeof window === 'undefined';
+    
     // Only skip API calls during actual build phase, not during runtime in production
-    const isBuildTime = typeof process !== 'undefined' && 
+    const isBuildTime = isServer &&
                         process.env.NODE_ENV === 'production' && 
-                        typeof window === 'undefined' && 
                         process.env.NEXT_PHASE === 'phase-production-build';
     
     if (isBuildTime) {
@@ -140,24 +139,12 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
       return [];
     }
     
-    // Determine the base URL
-    let baseUrl = '';
-    
-    // In browser environment, we can use relative URLs
-    if (typeof window !== 'undefined') {
-      // We're in the browser, use relative URL
-      baseUrl = '';
-    }
-    // In server environment (but not during build)
-    else {
-      // For production SSR (not build)
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod') {
-        baseUrl = process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app';
-      } else {
-        // For development SSR
-        baseUrl = 'http://localhost:3000';
-      }
-    }
+    // Simplified URL handling to avoid client/server differences
+    const baseUrl = isServer ? (
+      process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod' 
+        ? (process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app') 
+        : 'http://localhost:3000'
+    ) : '';
     
     const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}`);
     
