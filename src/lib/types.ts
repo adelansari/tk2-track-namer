@@ -22,6 +22,7 @@ export interface Track {
   imageUrl: string;
   imageHint: string;
   suggestions: Suggestion[];
+  suggestionCount?: number;
 }
 
 export interface BattleArena {
@@ -31,6 +32,7 @@ export interface BattleArena {
   imageUrl: string;
   imageHint: string;
   suggestions: Suggestion[];
+  suggestionCount?: number;
 }
 
 export type ItemType = 'track' | 'battle-arena';
