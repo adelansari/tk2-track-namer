@@ -1,22 +1,16 @@
 import { Pool } from 'pg';
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 // must have DATABASE_URL in .env.local
 const connectionString = process.env.DATABASE_URL!;
 if (!connectionString) {
   throw new Error('Missing DATABASE_URL – set it in your .env.local');
 }
 
-// decode CA cert from base64
-const caCert = Buffer.from(process.env.DATABASE_CA_CERT_BASE64!, 'base64')
-                      .toString('utf8');
-
 const pool = new Pool({
   connectionString,
   ssl: {
     rejectUnauthorized: true,
-    ca: caCert,
+    ca: process.env.DATABASE_CA_CERT,
   },
 });
 
