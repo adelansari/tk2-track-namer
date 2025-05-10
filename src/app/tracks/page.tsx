@@ -1,22 +1,11 @@
-import { getTracks, fetchSuggestionsForItem } from '@/lib/data';
+import { getTracks } from '@/lib/data';
 import { ItemCard } from '@/components/custom/ItemCard';
 import { Separator } from '@/components/ui/separator';
 import { Route } from 'lucide-react';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
 
 export default async function TracksPage() {
-  const tracks = getTracks();
-  
-  // Fetch suggestion counts for all tracks
-  for (const track of tracks) {
-    try {
-      const suggestions = await fetchSuggestionsForItem(track.id, 'track');
-      track.suggestions = suggestions;
-    } catch (error) {
-      console.error(`Error fetching suggestions for track ${track.id}:`, error);
-      track.suggestions = [];
-    }
-  }
+  const tracks = await getTracks();
 
   return (
     <div className="space-y-6">

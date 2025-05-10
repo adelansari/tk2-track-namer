@@ -73,7 +73,8 @@ export default async function BattleArenaDetailPage({ params }: BattleArenaDetai
 }
 
 export async function generateStaticParams() {
-  return getBattleArenas().map(arena => ({
+  const arenas = await getBattleArenas();
+  return arenas.map(arena => ({
     id: arena.id,
   }));
 }

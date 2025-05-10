@@ -1,22 +1,11 @@
-import { getBattleArenas, fetchSuggestionsForItem } from '@/lib/data';
+import { getBattleArenas } from '@/lib/data';
 import { ItemCard } from '@/components/custom/ItemCard';
 import { Separator } from '@/components/ui/separator';
 import { Swords } from 'lucide-react';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
 
 export default async function BattleArenasPage() {
-  const battleArenas = getBattleArenas();
-  
-  // Fetch suggestion counts for all battle arenas
-  for (const arena of battleArenas) {
-    try {
-      const suggestions = await fetchSuggestionsForItem(arena.id, 'battle-arena');
-      arena.suggestions = suggestions;
-    } catch (error) {
-      console.error(`Error fetching suggestions for arena ${arena.id}:`, error);
-      arena.suggestions = [];
-    }
-  }
+  const battleArenas = await getBattleArenas();
 
   return (
     <div className="space-y-6">

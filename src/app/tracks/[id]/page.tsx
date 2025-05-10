@@ -81,7 +81,8 @@ export default async function TrackDetailPage({ params }: TrackDetailPageProps) 
 }
 
 export async function generateStaticParams() {
-  return getTracks().map(track => ({
+  const tracks = await getTracks();
+  return tracks.map(track => ({
     id: track.id,
   }));
 }
