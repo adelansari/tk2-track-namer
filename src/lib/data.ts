@@ -90,7 +90,11 @@ export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: It
     const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&countsOnly=true&${itemIdParams}`);
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch suggestion counts: ${response.status}`);
+      console.error(`Failed to fetch suggestion counts: ${response.status}`);
+      // Instead of throwing, return an empty map, which means 0 suggestions for each item
+      const fallbackMap = new Map<string, number>();
+      itemIds.forEach(id => fallbackMap.set(id, 0));
+      return fallbackMap;
     }
 
     const data = await response.json(); // Expects { counts: { [itemId: string]: number } }
@@ -101,6 +105,14 @@ export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: It
         countsMap.set(id, count as number);
       }
     }
+    
+    // Fill in any missing IDs with 0 counts
+    itemIds.forEach(id => {
+      if (!countsMap.has(id)) {
+        countsMap.set(id, 0);
+      }
+    });
+    
     return countsMap;
   } catch (error) {
     console.error('Error fetching suggestion counts batch:', error);
