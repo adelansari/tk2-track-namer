@@ -2,9 +2,26 @@ import { CategoryCard } from '@/components/custom/CategoryCard';
 import { Route, Swords } from 'lucide-react';
 import { getBattleArenas, getTracks } from '@/lib/data';
 
-export default function HomePage() {
-  const tracksCount = getTracks().length;
-  const arenasCount = getBattleArenas().length;
+export default async function HomePage() {
+  let tracks = [];
+  let battleArenas = [];
+  
+  try {
+    tracks = await getTracks();
+  } catch (error) {
+    console.error('Error fetching tracks:', error);
+    // Continue with empty array
+  }
+  
+  try {
+    battleArenas = await getBattleArenas();
+  } catch (error) {
+    console.error('Error fetching battle arenas:', error);
+    // Continue with empty array
+  }
+  
+  const tracksCount = tracks.length;
+  const arenasCount = battleArenas.length;
 
   return (
     <div className="space-y-8">
