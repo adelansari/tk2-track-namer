@@ -7,6 +7,8 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get('type') || 'all';  // 'track', 'arena', 'all'
     const itemId = searchParams.get('itemId') || null;
+    const itemIds = searchParams.getAll('itemIds'); // For batch counts
+    const countsOnly = searchParams.get('countsOnly') === 'true'; // For batch counts
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const offset = (page - 1) * limit;
@@ -14,6 +16,35 @@ export async function GET(request: NextRequest) {
     let queryText = '';
     let queryParams: any[] = [];
     let countQuery = '';
+    
+    if (countsOnly && itemIds.length > 0) {
+      // Handle batch fetching of suggestion counts
+      const counts: { [key: string]: number } = {};
+      let countBaseQueryText = '';
+      let idColumnName = '';
+
+      if (type === 'track') {
+        countBaseQueryText = 'SELECT track_id, COUNT(*) as count FROM track_suggestions WHERE track_id = ANY($1::text[]) GROUP BY track_id';
+        idColumnName = 'track_id';
+      } else if (type === 'arena') {
+        countBaseQueryText = 'SELECT arena_id, COUNT(*) as count FROM arena_suggestions WHERE arena_id = ANY($1::text[]) GROUP BY arena_id';
+        idColumnName = 'arena_id';
+      } else {
+        return NextResponse.json({ error: 'Invalid type for batch counts' }, { status: 400 });
+      }
+
+      const result = await query(countBaseQueryText, [itemIds]);
+      result.rows.forEach((row: any) => {
+        counts[row[idColumnName]] = parseInt(row.count, 10);
+      });
+      // Ensure all requested itemIds have a count, even if 0
+      itemIds.forEach(id => {
+        if (!counts[id]) {
+          counts[id] = 0;
+        }
+      });
+      return NextResponse.json({ counts });
+    }
     
     if (type === 'track' || type === 'all') {
       queryText = `
