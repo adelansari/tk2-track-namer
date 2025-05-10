@@ -57,34 +57,60 @@ let battleArenas: BattleArena[] = Array.from({ length: 8 }, (_, i) => {
   };
 });
 
-// --- Track Functions ---
-export const getTracks = (): Track[] => tracks;
-export const getTrackById = (id: string): Track | undefined => tracks.find(t => t.id === id);
-
-// --- Battle Arena Functions ---
-export const getBattleArenas = (): BattleArena[] => battleArenas;
-export const getBattleArenaById = (id: string): BattleArena | undefined => battleArenas.find(a => a.id === id);
-
-// --- User Profile Functions ---
-export const updateUserProfile = async (userId: string, displayName: string): Promise<boolean> => {
-  try {
-    const response = await fetch(`/api/users/${userId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ display_name: displayName }),
-    });
-
-    const data = await response.json();
-    return data.success === true;
-  } catch (error) {
-    console.error('Error updating user profile:', error);
-    return false;
-  }
-};
-
 // --- Suggestion Functions ---
+// Fetch suggestion counts for multiple items
+export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: ItemType): Promise<Map<string, number>> => {
+  try {
+    const apiType = itemType === 'track' ? 'track' : 'arena';
+    const isBuildTime = typeof process !== 'undefined' &&
+                        process.env.NODE_ENV === 'production' &&
+                        typeof window === 'undefined' &&
+                        process.env.NEXT_PHASE === 'phase-production-build';
+
+    if (isBuildTime) {
+      console.log(`[Build] Skipping API fetch for suggestion counts for ${apiType}s`);
+      const counts = new Map<string, number>();
+      itemIds.forEach(id => counts.set(id, 0));
+      return counts;
+    }
+
+    let baseUrl = '';
+    if (typeof window !== 'undefined') {
+      baseUrl = '';
+    } else {
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod') {
+        baseUrl = process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app';
+      } else {
+        baseUrl = 'http://localhost:3000';
+      }
+    }
+
+    // Construct the query parameters for multiple item IDs
+    const itemIdParams = itemIds.map(id => `itemIds=${encodeURIComponent(id)}`).join('&');
+    const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&countsOnly=true&${itemIdParams}`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch suggestion counts: ${response.status}`);
+    }
+
+    const data = await response.json(); // Expects { counts: { [itemId: string]: number } }
+    
+    const countsMap = new Map<string, number>();
+    if (data.counts && typeof data.counts === 'object') {
+      for (const [id, count] of Object.entries(data.counts)) {
+        countsMap.set(id, count as number);
+      }
+    }
+    return countsMap;
+  } catch (error) {
+    console.error('Error fetching suggestion counts batch:', error);
+    // Return a map with 0 counts for all requested IDs in case of error
+    const errorCounts = new Map<string, number>();
+    itemIds.forEach(id => errorCounts.set(id, 0));
+    return errorCounts;
+  }
+}
+
 // Fetch suggestions from database
 export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType): Promise<Suggestion[]> => {
   try {
@@ -307,6 +333,77 @@ export const getUserVote = async (suggestionId: string, userId: string): Promise
   } catch (error) {
     console.error('Error getting user vote status:', error);
     return null;
+  }
+};
+
+// --- Track Functions ---
+export const getTracks = async (): Promise<Track[]> => {
+  // Fetch all tracks (assuming this part remains synchronous or is pre-loaded)
+  const allTracks = tracks; // Using the in-memory tracks array
+
+  // Get all track IDs
+  const trackIds = allTracks.map(track => track.id);
+
+  if (trackIds.length > 0) {
+    // Fetch suggestion counts for all tracks in a single batch
+    const suggestionCounts = await fetchSuggestionCountsBatch(trackIds, 'track');
+
+    // Assign suggestion counts to each track
+    // And initialize suggestions array if it's not already there
+    return allTracks.map(track => ({
+      ...track,
+      suggestions: track.suggestions || [], // Ensure suggestions array exists
+      suggestionCount: suggestionCounts.get(track.id) || 0,
+    }));
+  }
+  // Return tracks with empty suggestions and 0 count if no IDs
+  return allTracks.map(track => ({
+    ...track,
+    suggestions: track.suggestions || [],
+    suggestionCount: 0,
+  }));
+};
+
+export const getTrackById = (id: string): Track | undefined => tracks.find(t => t.id === id);
+
+// --- Battle Arena Functions ---
+export const getBattleArenas = async (): Promise<BattleArena[]> => {
+  const allArenas = battleArenas; // Using the in-memory arenas array
+  const arenaIds = allArenas.map(arena => arena.id);
+
+  if (arenaIds.length > 0) {
+    const suggestionCounts = await fetchSuggestionCountsBatch(arenaIds, 'battle-arena');
+    return allArenas.map(arena => ({
+      ...arena,
+      suggestions: arena.suggestions || [],
+      suggestionCount: suggestionCounts.get(arena.id) || 0,
+    }));
+  }
+  return allArenas.map(arena => ({
+    ...arena,
+    suggestions: arena.suggestions || [],
+    suggestionCount: 0,
+  }));
+};
+
+export const getBattleArenaById = (id: string): BattleArena | undefined => battleArenas.find(a => a.id === id);
+
+// --- User Profile Functions ---
+export const updateUserProfile = async (userId: string, displayName: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`/api/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ display_name: displayName }),
+    });
+
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    return false;
   }
 };
 
