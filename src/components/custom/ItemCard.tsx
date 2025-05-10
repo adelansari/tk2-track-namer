@@ -19,6 +19,7 @@ export function ItemCard({ item, itemType }: ItemCardProps) {
   
   // Only consider it officially named if it has a name and it's not a default arena name
   const hasOfficialName = item.name && !isDefaultArenaName;
+  const suggestionCount = item.suggestionCount !== undefined ? item.suggestionCount : item.suggestions.length;
   
   return (
     <Card className="overflow-hidden shadow-md transition-all hover:shadow-lg hover:scale-[1.02] duration-300 ease-in-out">
@@ -45,10 +46,10 @@ export function ItemCard({ item, itemType }: ItemCardProps) {
             <CardDescription className="text-sm">Suggest a name for this {itemType === 'track' ? 'track' : 'arena'}.</CardDescription>
         )}
         
-        {item.suggestions.length > 0 ? (
+        {suggestionCount > 0 ? (
           <p className="text-xs text-muted-foreground mt-1 flex items-center">
             <MessageSquare className="h-3 w-3 mr-1" />
-            {item.suggestions.length} suggestion{item.suggestions.length !== 1 ? 's' : ''}
+            {suggestionCount} suggestion{suggestionCount !== 1 ? 's' : ''}
           </p>
         ) : (
           !hasOfficialName && <p className="text-xs text-muted-foreground mt-1">No suggestions yet</p>
