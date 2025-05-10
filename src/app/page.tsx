@@ -7,14 +7,16 @@ export default async function HomePage() {
   let battleArenas = [];
   
   try {
-    tracks = await getTracks();
+    // Skip fetching suggestion counts since we don't need them on the home page
+    tracks = await getTracks(true);
   } catch (error) {
     console.error('Error fetching tracks:', error);
     // Continue with empty array
   }
   
   try {
-    battleArenas = await getBattleArenas();
+    // Skip fetching suggestion counts since we don't need them on the home page
+    battleArenas = await getBattleArenas(true);
   } catch (error) {
     console.error('Error fetching battle arenas:', error);
     // Continue with empty array

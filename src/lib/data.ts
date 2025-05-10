@@ -349,9 +349,18 @@ export const getUserVote = async (suggestionId: string, userId: string): Promise
 };
 
 // --- Track Functions ---
-export const getTracks = async (): Promise<Track[]> => {
+export const getTracks = async (skipCounts: boolean = false): Promise<Track[]> => {
   // Fetch all tracks (assuming this part remains synchronous or is pre-loaded)
   const allTracks = tracks; // Using the in-memory tracks array
+
+  // If we should skip suggestion counts (for performance on pages that don't need them)
+  if (skipCounts) {
+    return allTracks.map(track => ({
+      ...track,
+      suggestions: track.suggestions || [],
+      suggestionCount: 0, // Default to 0 when skipping counts
+    }));
+  }
 
   // Get all track IDs
   const trackIds = allTracks.map(track => track.id);
@@ -379,8 +388,18 @@ export const getTracks = async (): Promise<Track[]> => {
 export const getTrackById = (id: string): Track | undefined => tracks.find(t => t.id === id);
 
 // --- Battle Arena Functions ---
-export const getBattleArenas = async (): Promise<BattleArena[]> => {
+export const getBattleArenas = async (skipCounts: boolean = false): Promise<BattleArena[]> => {
   const allArenas = battleArenas; // Using the in-memory arenas array
+  
+  // If we should skip suggestion counts (for performance on pages that don't need them)
+  if (skipCounts) {
+    return allArenas.map(arena => ({
+      ...arena,
+      suggestions: arena.suggestions || [],
+      suggestionCount: 0, // Default to 0 when skipping counts
+    }));
+  }
+
   const arenaIds = allArenas.map(arena => arena.id);
 
   if (arenaIds.length > 0) {
