@@ -3,18 +3,26 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Helper function to get suggestion by ID with its type
 async function getSuggestionWithType(id: string) {
-  // Try track suggestions first
-  const trackResult = await query('SELECT *, \'track\' as type FROM track_suggestions WHERE id = $1', [id]);
-  if (trackResult.rows.length > 0) {
-    return { suggestion: trackResult.rows[0], type: 'track' };
-  }
+  // Ensure id is properly cast to integer for database query
+  // This is crucial as arena IDs might be coming as numeric strings
+  const numericId = parseInt(id, 10);
+  console.log(`Looking up suggestion with ID: ${id} (${numericId})`);
   
-  // Try arena suggestions if not found
-  const arenaResult = await query('SELECT *, \'arena\' as type FROM arena_suggestions WHERE id = $1', [id]);
+  // Check both tables but check arena suggestions first
+  const arenaResult = await query('SELECT *, \'arena\' as type FROM arena_suggestions WHERE id = $1', [numericId]);
   if (arenaResult.rows.length > 0) {
+    console.log('Found in arena_suggestions');
     return { suggestion: arenaResult.rows[0], type: 'arena' };
   }
   
+  // Try track suggestions if not found in arena
+  const trackResult = await query('SELECT *, \'track\' as type FROM track_suggestions WHERE id = $1', [numericId]);
+  if (trackResult.rows.length > 0) {
+    console.log('Found in track_suggestions');
+    return { suggestion: trackResult.rows[0], type: 'track' };
+  }
+  
+  console.log(`No suggestion found with ID: ${id}`);
   return { suggestion: null, type: null };
 }
 

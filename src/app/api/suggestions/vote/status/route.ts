@@ -13,12 +13,16 @@ export async function GET(request: NextRequest) {
         { success: false, message: 'Missing required parameters' },
         { status: 400 }
       );
-    }
-
-    // Check for vote in the user_votes table
+    }    // Make sure the suggestion ID is properly cast to integer for database query
+    const numericSuggestionId = parseInt(suggestionId, 10);
+    console.log(`Checking vote status for suggestion ID: ${suggestionId} (${numericSuggestionId}), user ID: ${userId}`);
+    
+    // Try both suggestion types - let's check existing votes for both types
     const voteResult = await query(
-      'SELECT * FROM user_votes WHERE user_id = $1 AND suggestion_id = $2',
-      [userId, suggestionId]
+      `SELECT * FROM user_votes 
+       WHERE user_id = $1 AND suggestion_id = $2 
+       AND suggestion_type IN ('track', 'arena')`,
+      [userId, numericSuggestionId]
     );
     
     if (voteResult.rows.length === 0) {
