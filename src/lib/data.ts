@@ -153,8 +153,7 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
     }
 
     const data = await response.json();
-    
-    return data.suggestions.map((suggestion: any) => ({
+      const mappedSuggestions = data.suggestions.map((suggestion: any) => ({
       id: suggestion.id.toString(),
       itemId: suggestion.item_id,
       userId: suggestion.user_id,
@@ -163,6 +162,9 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
       votes: suggestion.votes || 0,
       createdAt: new Date(suggestion.created_at),
     }));
+    
+    console.log(`Mapped suggestions for ${itemType} ${itemId}:`, mappedSuggestions);
+    return mappedSuggestions;
   } catch (error) {
     console.error('Error fetching suggestions:', error);
     return [];
@@ -285,6 +287,7 @@ export const deleteSuggestion = async (suggestionId: string, userId: string): Pr
 // Vote on suggestion
 export const voteSuggestion = async (suggestionId: string, action: 'upvote', userId: string): Promise<{ success: boolean, action?: 'added' | 'removed' }> => {
   try {
+    console.log(`Voting on suggestion ID: ${suggestionId} with action: ${action} by user: ${userId}`);
     const response = await fetch('/api/suggestions/vote', {
       method: 'POST',
       headers: {
@@ -304,6 +307,27 @@ export const voteSuggestion = async (suggestionId: string, action: 'upvote', use
     }
 
     const data = await response.json();
+    console.log(`Vote response for suggestion ${suggestionId}:`, data);
+    
+    // Ensure vote counts are synced after a short delay
+    setTimeout(async () => {
+      try {
+        // This ensures all vote counts are properly synchronized
+        await fetch('/api/suggestions/vote/fix-counts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'all'
+          }),
+        });
+        console.log('Vote counts synchronized');
+      } catch (syncError) {
+        console.error('Error synchronizing vote counts:', syncError);
+      }
+    }, 500);
+    
     return { 
       success: data.success === true,
       action: data.action as 'added' | 'removed'
@@ -317,13 +341,19 @@ export const voteSuggestion = async (suggestionId: string, action: 'upvote', use
 // Get a user's vote on a specific suggestion
 export const getUserVote = async (suggestionId: string, userId: string): Promise<'upvote' | null> => {
   try {
+    // Log the suggestion ID for debugging
+    console.log(`Getting vote status for suggestion: ${suggestionId}, user: ${userId}`);
+    
     const response = await fetch(`/api/suggestions/vote/status?suggestion_id=${suggestionId}&user_id=${userId}`);
     
     if (!response.ok) {
+      console.error(`Vote status response not OK: ${response.status}`);
       return null;
     }
     
     const data = await response.json();
+    console.log('Vote status response:', data);
+    
     if (data.success && data.vote) {
       return data.vote.vote_type === 1 ? 'upvote' : null;
     }
