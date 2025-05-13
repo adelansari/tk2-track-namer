@@ -32,9 +32,9 @@ export async function GET(request: NextRequest) {
         idColumnName = 'arena_id';
       } else {
         return NextResponse.json({ error: 'Invalid type for batch counts' }, { status: 400 });
-      }      const result = await query(countBaseQueryText, [itemIds]);
-      console.log(`Counts query executed for ${type} with ${itemIds.length} items, got ${result.rows.length} results`);
-      
+      }
+
+      const result = await query(countBaseQueryText, [itemIds]);
       result.rows.forEach((row: any) => {
         counts[row[idColumnName]] = parseInt(row.count, 10);
       });
@@ -44,10 +44,7 @@ export async function GET(request: NextRequest) {
           counts[id] = 0;
         }
       });
-      return NextResponse.json({ 
-        success: true,
-        counts 
-      });
+      return NextResponse.json({ counts });
     }
     
     if (type === 'track' || type === 'all') {      queryText = `
@@ -171,10 +168,11 @@ export async function GET(request: NextRequest) {
         totalItems,
         totalPages: Math.ceil(totalItems / limit)
       }
-    });  } catch (error) {
+    });
+  } catch (error) {
     console.error('Error fetching suggestions:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch suggestions', suggestions: [], error: error.message },
+      { success: false, message: 'Failed to fetch suggestions' },
       { status: 500 }
     );
   }
