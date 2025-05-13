@@ -72,21 +72,9 @@ export function SuggestionFormWrapper({ itemId, itemType }: SuggestionFormWrappe
   };
 
   return (
-    <div className="space-y-6 py-2">
-      <div className="bg-muted/50 rounded-lg p-4">
-        <div className="flex justify-between items-center mb-4">
+    <div className="space-y-6 py-2">      <div className="bg-muted/50 rounded-lg p-4">
+        <div className="mb-4">
           <h2 className="font-semibold text-xl">Suggest a Name</h2>
-          {currentUser && (
-            <Button 
-              onClick={() => setIsNewSuggestionDialogOpen(true)}
-              variant="outline" 
-              size="sm"
-              className="flex items-center gap-1"
-            >
-              <PlusCircle className="h-4 w-4" />
-              New Suggestion
-            </Button>
-          )}
         </div>
 
         {loading ? (
