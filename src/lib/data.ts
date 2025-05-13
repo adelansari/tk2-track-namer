@@ -73,9 +73,7 @@ export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: It
       const counts = new Map<string, number>();
       itemIds.forEach(id => counts.set(id, 0));
       return counts;
-    }
-
-    // Simplified URL handling to avoid client/server differences
+    }    // Simplified URL handling to avoid client/server differences
     const baseUrl = isServer ? (
       process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod' 
         ? (process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app')
@@ -84,7 +82,11 @@ export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: It
 
     // Construct the query parameters for multiple item IDs
     const itemIdParams = itemIds.map(id => `itemIds=${encodeURIComponent(id)}`).join('&');
-    const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&countsOnly=true&${itemIdParams}`);
+    console.log(`Fetching counts for ${apiType}: ${baseUrl}/api/suggestions?type=${apiType}&countsOnly=true&${itemIdParams}`);
+    const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&countsOnly=true&${itemIdParams}`, {
+      // Add cache: 'no-store' to ensure we don't get cached responses
+      cache: 'no-store'
+    });
 
     if (!response.ok) {
       console.error(`Failed to fetch suggestion counts: ${response.status}`);
@@ -92,14 +94,25 @@ export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: It
       const fallbackMap = new Map<string, number>();
       itemIds.forEach(id => fallbackMap.set(id, 0));
       return fallbackMap;
-    }
-
-    const data = await response.json(); // Expects { counts: { [itemId: string]: number } }
+    }    const data = await response.json(); // Expects { counts: { [itemId: string]: number } }
+    console.log('API response for counts:', data);
+      const countsMap = new Map<string, number>();
     
-    const countsMap = new Map<string, number>();
-    if (data.counts && typeof data.counts === 'object') {
-      for (const [id, count] of Object.entries(data.counts)) {
-        countsMap.set(id, count as number);
+    // Handle both new and old API response formats
+    if (data && typeof data === 'object') {
+      // If the response has a counts property (newer API format)
+      if (data.counts && typeof data.counts === 'object') {
+        for (const [id, count] of Object.entries(data.counts)) {
+          countsMap.set(id, parseInt(String(count), 10) || 0);
+        }
+      } 
+      // If the response itself is the counts object (older API format)
+      else if (!data.success && !data.error) {
+        for (const [key, value] of Object.entries(data)) {
+          if (key !== 'success' && key !== 'error') {
+            countsMap.set(key, parseInt(String(value), 10) || 0);
+          }
+        }
       }
     }
     
@@ -145,22 +158,38 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
         ? (process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app') 
         : 'http://localhost:3000'
     ) : '';
-    
-    const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}`);
+      console.log(`Fetching suggestions for ${itemType} ${itemId} from ${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}`);    const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}`, {
+      // Add cache: 'no-store' to prevent stale data
+      cache: 'no-store'
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch suggestions: ${response.status}`);
     }
-
+    
     const data = await response.json();
-      const mappedSuggestions = data.suggestions.map((suggestion: any) => ({
-      id: suggestion.id.toString(),
-      itemId: suggestion.item_id,
-      userId: suggestion.user_id,
+    console.log(`API response for ${itemType} ${itemId}:`, data);
+      // Check if data is valid and has suggestions property
+    if (!data || !data.success || !data.suggestions) {
+      console.warn(`Invalid or empty response for ${itemType} ${itemId}:`, data);
+      return [];
+    }
+    
+    // Even more defensive coding - ensure suggestions is an array
+    if (!Array.isArray(data.suggestions)) {
+      console.warn(`Suggestions is not an array for ${itemType} ${itemId}:`, data.suggestions);
+      return [];
+    }
+    
+    // Map suggestions with careful property access to avoid undefined errors
+    const mappedSuggestions = data.suggestions.map((suggestion: any) => ({
+      id: suggestion.id ? suggestion.id.toString() : 'unknown',
+      itemId: suggestion.item_id || itemId, // Fallback to the passed itemId
+      userId: suggestion.user_id || 'anonymous',
       userName: suggestion.user_display_name || 'Anonymous User',
-      text: suggestion.name,
-      votes: suggestion.votes || 0,
-      createdAt: new Date(suggestion.created_at),
+      text: suggestion.name || '(No name provided)',
+      votes: (suggestion.votes !== undefined) ? suggestion.votes : 0,
+      createdAt: suggestion.created_at ? new Date(suggestion.created_at) : new Date(),
     }));
     
     console.log(`Mapped suggestions for ${itemType} ${itemId}:`, mappedSuggestions);
