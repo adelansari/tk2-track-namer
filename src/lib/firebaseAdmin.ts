@@ -3,15 +3,19 @@ import { initializeApp, getApps, cert } from "firebase-admin/app";
 
 // Initialize Firebase Admin if not already initialized
 if (!getApps().length) {
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY 
-    ? process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n')
-    : undefined;
-    
+  const getPrivateKey = () => {
+    if (process.env.FIREBASE_ADMIN_PRIVATE_KEY_BASE64) {
+      return Buffer.from(process.env.FIREBASE_ADMIN_PRIVATE_KEY_BASE64, 'base64').toString('ascii');
+    }
+    // Fall back to regular key with newline replacement
+    return process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  };
+  
   initializeApp({
     credential: cert({
       projectId: process.env.FIREBASE_ADMIN_PROJECT_ID as string,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL as string,
-      privateKey,
+      privateKey: getPrivateKey(),
     })
   });
 }
