@@ -1,10 +1,25 @@
 import { getBattleArenaById, getBattleArenas, fetchSuggestionsForItem } from '@/lib/data';
 import Image from 'next/image';
+import Link from 'next/link';
 import { SuggestionFormWrapper } from '@/components/custom/SuggestionFormWrapper';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Shield } from 'lucide-react';
+import { Shield, ChevronLeft, ChevronRight } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
+
+// Helper function to get next arena ID
+const getNextArenaId = (currentId: string): string | null => {
+  const currentNumber = parseInt(currentId.split('-')[1]);
+  const nextNumber = currentNumber + 1;
+  return nextNumber <= 8 ? `arena-${String(nextNumber).padStart(2, '0')}` : null;
+};
+
+// Helper function to get previous arena ID
+const getPrevArenaId = (currentId: string): string | null => {
+  const currentNumber = parseInt(currentId.split('-')[1]);
+  const prevNumber = currentNumber - 1;
+  return prevNumber >= 1 ? `arena-${String(prevNumber).padStart(2, '0')}` : null;
+}
 
 interface BattleArenaDetailPageProps {
   params: Promise<{ id: string }> | { id: string };
@@ -53,9 +68,41 @@ export default async function BattleArenaDetailPage({ params }: BattleArenaDetai
               className="object-cover"
             />
           </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          <CardTitle className="text-3xl md:text-4xl font-bold mb-2">{title}</CardTitle>
+        </CardHeader>        <CardContent className="p-6">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            {getPrevArenaId(arena.id) ? (
+              <Link 
+                href={`/battle-arenas/${getPrevArenaId(arena.id)}`}
+                className="flex items-center gap-1 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span>Prev Arena</span>
+              </Link>
+            ) : (
+              <div className="w-[105px]" />
+            )}
+
+            <div className="flex flex-col items-center gap-2">
+              <CardTitle className="text-3xl md:text-4xl font-bold text-center">{title}</CardTitle>
+              {arena.name && (
+                <div className="flex items-center text-lg text-green-600 bg-green-100 dark:bg-green-900 dark:text-green-300 px-3 py-1 rounded-md">
+                  <Shield className="h-5 w-5 mr-2" /> Official Name
+                </div>
+              )}
+            </div>
+
+            {getNextArenaId(arena.id) ? (
+              <Link 
+                href={`/battle-arenas/${getNextArenaId(arena.id)}`}
+                className="flex items-center gap-1 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
+              >
+                <span>Next Arena</span>
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <div className="w-[105px]" />
+            )}
+          </div>
           <CardDescription className="text-lg text-muted-foreground mb-6">
             {/* Arena names are not pre-defined, so always show this message */}
             {`Help us find the perfect name for Arena ${String(arena.numericId).padStart(2, '0')}! Submit your creative ideas below.`}
