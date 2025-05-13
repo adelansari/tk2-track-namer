@@ -5,9 +5,35 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { CheckCircle2 } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
+import { TrackScreenshotGallery } from '@/components/custom/TrackScreenshotGallery';
 
 interface TrackDetailPageProps {
   params: Promise<{ id: string }> | { id: string };
+}
+
+// Function to get the base path for track screenshots
+const getTrackScreenshotBasePath = (trackNumber: number): string | null => {
+  try {
+    // Only tracks 5-16 have screenshots
+    if (trackNumber < 5 || trackNumber > 16) return null;
+    
+    // Format the track folder name
+    const folderName = `track-${String(trackNumber).padStart(2, '0')}`;
+    return `/assets/TrackScreenshots/${folderName}`;
+  } catch (error) {
+    console.error("Error getting track screenshot path:", error);
+    return null;
+  }
+};
+
+// Function to get screenshots for a track
+const getTrackScreenshots = (trackNumber: number): string[] => {
+  const basePath = getTrackScreenshotBasePath(trackNumber);
+  if (!basePath) return [];
+  
+  // Return the base path for the gallery component to handle discovery
+  // This is much more robust as the component will dynamically check which images exist
+  return [`${basePath}/basepath`];
 }
 
 export default async function TrackDetailPage({ params }: TrackDetailPageProps) {
@@ -31,6 +57,9 @@ export default async function TrackDetailPage({ params }: TrackDetailPageProps) 
   
   const title = track.name || `Track ${String(track.numericId).padStart(2, '0')}`;
   const isPreNamedUneditable = !!track.name && track.numericId <= 4;
+  
+  // Get screenshots for this track
+  const screenshots = getTrackScreenshots(track.numericId);
 
   return (
     <div className="space-y-8">
@@ -61,13 +90,16 @@ export default async function TrackDetailPage({ params }: TrackDetailPageProps) 
                 <CheckCircle2 className="h-5 w-5 mr-2" /> Official Name
               </div>
             )}
-          </div>
-          <CardDescription className="text-lg text-muted-foreground mb-6">
+          </div>          <CardDescription className="text-lg text-muted-foreground mb-6">
             {isPreNamedUneditable 
               ? "This track has an official name. You cannot suggest a name."
               : `Help us find the perfect name for Track ${String(track.numericId).padStart(2, '0')}! Submit your creative ideas below.`
             }
           </CardDescription>
+          
+          {screenshots.length > 0 && (
+            <TrackScreenshotGallery screenshots={screenshots} title={title} />
+          )}
         </CardContent>
       </Card>
 
