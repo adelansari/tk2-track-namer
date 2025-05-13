@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { AuthButton } from './AuthButton';
+import { Button } from '@/components/ui/button';
 import { Gamepad2, Map, Swords, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -37,13 +38,15 @@ export function Header() {
         
         <div className="flex items-center gap-4">
           {currentUser && (
-            <Link 
-              href="/profile" 
-              className="flex items-center gap-1 text-sm font-medium transition-colors hover:text-primary"
-            >
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">Profile</span>
-            </Link>
+            <>
+              <span className="text-sm hidden sm:inline text-muted-foreground">Welcome, {currentUser.name}!</span>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Profile</span>
+                </Link>
+              </Button>
+            </>
           )}
           <AuthButton />
         </div>
