@@ -82,14 +82,37 @@ export function SuggestionList({
       
       loadUserVotes();
     }
-  }, [currentUser, suggestions]);
-
-  // Refresh suggestions from the database
+  }, [currentUser, suggestions]);  // Refresh suggestions from the database
   const refreshSuggestions = async () => {
     setIsLoading(true);
     try {
+      // Force a delay to ensure the database has time to commit the changes
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const freshSuggestions = await fetchSuggestionsForItem(itemId, itemType);
+      console.log(`Refreshed ${itemType} suggestions for ${itemId}:`, freshSuggestions);
       setSuggestions(freshSuggestions);
+      
+      // Also refresh vote statuses when suggestions are refreshed
+      if (currentUser && freshSuggestions.length > 0) {
+        console.log(`Refreshing vote statuses for ${freshSuggestions.length} suggestions`);
+        const votes: Record<string, 'upvote' | null> = {};
+        
+        // Sequentially fetch vote statuses (to avoid race conditions)
+        for (const suggestion of freshSuggestions) {
+          try {
+            console.log(`Checking vote for suggestion ${suggestion.id}`);
+            const voteType = await getUserVote(suggestion.id, currentUser.id);
+            votes[suggestion.id] = voteType === 'upvote' ? voteType : null;
+            console.log(`Vote for ${suggestion.id}: ${votes[suggestion.id]}`);
+          } catch (error) {
+            console.error(`Error fetching vote for suggestion ${suggestion.id}:`, error);
+          }
+        }
+        
+        setUserVotes(votes);
+      }
+      
       if (onSuggestionChanged) {
         await onSuggestionChanged();
       }
@@ -121,15 +144,38 @@ export function SuggestionList({
       setIsLoading(false);
     }
   };
-  
-  const handleVote = async (suggestionId: string) => {
+    const handleVote = async (suggestionId: string) => {
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to vote on suggestions.", variant: "default" });
       return;
     }
     
+    console.log(`Voting on suggestion ID: ${suggestionId}`);
     setVoteInProgress(suggestionId);
     try {
+      // Update the local UI first for a better user experience
+      const currentVoteStatus = userVotes[suggestionId] === 'upvote';
+      const optimisticVote = !currentVoteStatus ? 'upvote' : null;
+      
+      // Apply optimistic update
+      setUserVotes(prev => ({
+        ...prev,
+        [suggestionId]: optimisticVote
+      }));
+        // Update the suggestion's vote count in the local state
+      setSuggestions(prev => prev.map(suggestion => {
+        if (suggestion.id === suggestionId) {
+          // Handle the case where votes might be undefined by defaulting to 0
+          const currentVotes = suggestion.votes ?? 0;
+          return {
+            ...suggestion,
+            votes: currentVotes + (optimisticVote ? 1 : -1)
+          };
+        }
+        return suggestion;
+      }));
+      
+      // Actually send the vote to the server
       const result = await voteSuggestion(suggestionId, 'upvote', currentUser.id);
       
       if (result.success) {
@@ -158,7 +204,7 @@ export function SuggestionList({
           });
         }
         
-        // Refresh suggestions to update the vote count
+        // Refresh suggestions from the server to ensure accurate vote counts
         await refreshSuggestions();
       } else {
         toast({ title: "Error", description: "Failed to process your vote.", variant: "destructive" });
