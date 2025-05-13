@@ -6,11 +6,19 @@ if (!connectionString) {
   throw new Error('Missing DATABASE_URL – set it in your .env.local');
 }
 
+const getCertificate = () => {
+  if (process.env.DATABASE_CA_CERT_BASE64) {
+    return Buffer.from(process.env.DATABASE_CA_CERT_BASE64, 'base64').toString('ascii');
+  }
+  // Fall back to the regular cert
+  return process.env.DATABASE_CA_CERT;
+};
+
 const pool = new Pool({
   connectionString,
   ssl: {
     rejectUnauthorized: true,
-    ca: process.env.DATABASE_CA_CERT,
+    ca: getCertificate(),
   },
 });
 
