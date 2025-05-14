@@ -227,11 +227,20 @@ export async function DELETE(
     console.error('Error deleting suggestion:', error);
     // Add more detailed error information
     const errorMessage = error instanceof Error ? error.message : 'Failed to delete suggestion';
+    
+    // Safely get the ID parameter
+    let id: string | undefined;
+    try {
+      id = params instanceof Promise ? (await params).id : params.id;
+    } catch (paramError) {
+      console.error('Error accessing params:', paramError);
+    }
+    
     const errorDetails = {
       success: false, 
       message: errorMessage,
       details: {
-        id: resolvedParams?.id,
+        id,
         user_id: request.nextUrl.searchParams.get('user_id'),
         super: request.nextUrl.searchParams.get('super'),
         errorType: error?.constructor?.name,
