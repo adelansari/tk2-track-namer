@@ -34,7 +34,7 @@ let tracks: Track[] = Array.from({ length: 16 }, (_, i) => {
 });
 
 // Initial data for battle arenas
-let battleArenas: BattleArena[] = Array.from({ length: 8 }, (_, i) => {
+let battleArenas: BattleArena[] = Array.from({ length: 9 }, (_, i) => {
   const numericId = i + 1;
   let imageHint = "battle arena";
 
@@ -46,12 +46,15 @@ let battleArenas: BattleArena[] = Array.from({ length: 8 }, (_, i) => {
   else if (numericId === 6) { imageHint = "castle courtyard"; }
   else if (numericId === 7) { imageHint = "shipwreck cove"; }
   else if (numericId === 8) { imageHint = "cyber grid"; }
-
+  else if (numericId === 9) { imageHint = "cosmic arena"; }
+  
+  const extension = '.jpg';
+  
   return {
     id: `arena-${String(numericId).padStart(2, '0')}`,
     numericId: numericId,
     name: `Arena ${String(numericId).padStart(2, '0')}`, // Default name
-    imageUrl: `/assets/BattleArena/${String(numericId).padStart(2, '0')}.jpg`,
+    imageUrl: `/assets/BattleArena/${String(numericId).padStart(2, '0')}${extension}`,
     imageHint: imageHint,
     suggestions: [],
   };

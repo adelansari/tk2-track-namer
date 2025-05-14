@@ -9,5 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 export function getAssetImagePath(type: 'Tracks' | 'BattleArena', number: number): string {
   // Format the number with leading zero if needed
   const formattedNumber = String(number).padStart(2, '0');
-  return `${type === 'Tracks' ? '/tracks' : '/battle-arenas'}/assets/${formattedNumber}.jpg`;
+  const basePath = type === 'Tracks' ? '/tracks' : '/battle-arenas';
+  
+  return `${basePath}/assets/${formattedNumber}`;
 }

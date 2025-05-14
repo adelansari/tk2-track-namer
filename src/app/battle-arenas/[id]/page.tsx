@@ -11,7 +11,7 @@ import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
 const getNextArenaId = (currentId: string): string | null => {
   const currentNumber = parseInt(currentId.split('-')[1]);
   const nextNumber = currentNumber + 1;
-  return nextNumber <= 8 ? `arena-${String(nextNumber).padStart(2, '0')}` : null;
+  return nextNumber <= 9 ? `arena-${String(nextNumber).padStart(2, '0')}` : null;
 };
 
 // Helper function to get previous arena ID
