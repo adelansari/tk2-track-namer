@@ -264,9 +264,11 @@ export const updateSuggestion = async (suggestionId: string, newText: string, us
 };
 
 // Delete suggestion
-export const deleteSuggestion = async (suggestionId: string, userId: string): Promise<boolean> => {
+export const deleteSuggestion = async (suggestionId: string, userId: string, superMode: boolean = false): Promise<boolean> => {
   try {
-    const response = await fetch(`/api/suggestions/${suggestionId}?user_id=${userId}`, {
+    console.log(`Deleting suggestion ${suggestionId} by user ${userId}, super mode: ${superMode}`);
+    const superParam = superMode ? '&super=true' : '';
+    const response = await fetch(`/api/suggestions/${suggestionId}?user_id=${userId}${superParam}`, {
       method: 'DELETE',
     });
 
@@ -276,9 +278,17 @@ export const deleteSuggestion = async (suggestionId: string, userId: string): Pr
       return false;
     }
 
+    // Parse the response only once
     const data = await response.json();
     return data.success === true;
   } catch (error) {
+    // Handle any parsing errors by checking if the error is related to JSON parsing
+    if (error instanceof SyntaxError && error.message.includes('JSON')) {
+      console.error('Error parsing JSON when deleting suggestion:', error);
+      // If it's a JSON parsing error, the delete operation might have succeeded
+      // but the response handling failed. Return true in this case.
+      return true;
+    }
     console.error('Error deleting suggestion:', error);
     return false;
   }

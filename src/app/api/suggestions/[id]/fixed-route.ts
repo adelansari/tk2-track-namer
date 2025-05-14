@@ -23,7 +23,8 @@ async function getSuggestionWithType(id: string) {
   }
 
   console.log(`Looking up suggestion with ID: ${id}, will use numericId: ${numericId}`);
-    try {
+  
+  try {
     // Try both forms of ID (string and number) for track suggestions
     let trackResult;
     
@@ -57,7 +58,9 @@ async function getSuggestionWithType(id: string) {
     if (!arenaResult?.rows.length) {
       arenaResult = await query('SELECT *, \'arena\' as type FROM arena_suggestions WHERE id::text = $1', [id]);
       console.log(`Arena query with string ID "${id}" returned ${arenaResult.rows.length} rows`);
-    }    if (arenaResult.rows.length > 0) {
+    }
+    
+    if (arenaResult.rows.length > 0) {
       console.log('Found in arena_suggestions:', arenaResult.rows[0]);
       return { suggestion: arenaResult.rows[0], type: 'arena' };
     }
@@ -79,7 +82,8 @@ export async function GET(
     const resolvedParams = await params;
     const id = resolvedParams.id;
     const { suggestion, type } = await getSuggestionWithType(id);
-      if (!suggestion) {
+    
+    if (!suggestion) {
       return NextResponse.json(
         { success: false, message: 'Suggestion not found' },
         { status: 404 }
@@ -172,9 +176,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    // Extract and parse parameters
     const resolvedParams = await params;
     const id = resolvedParams.id;
     const user_id = request.nextUrl.searchParams.get('user_id');
+    const isSuperUser = request.nextUrl.searchParams.get('super') === 'true';
+    
+    console.log(`DELETE request - ID: ${id}, User ID: ${user_id}, Super mode: ${isSuperUser}`);
     
     if (!user_id) {
       return NextResponse.json(
@@ -182,9 +190,6 @@ export async function DELETE(
         { status: 400 }
       );
     }
-      // Check for super user mode
-    const isSuperUser = request.nextUrl.searchParams.get('super') === 'true';
-    console.log(`Delete request - User ID: ${user_id}, Super mode: ${isSuperUser}`);
     
     // Get current suggestion details
     const { suggestion, type } = await getSuggestionWithType(id);
@@ -197,50 +202,67 @@ export async function DELETE(
     }
     
     // Log the suggestion details for debugging
-    console.log(`Suggestion details - ID: ${id}, Type: ${type}, Owner ID: ${suggestion.user_id}, Requester ID: ${user_id}`);
+    console.log(`Found suggestion - ID: ${id}, Type: ${type}, Owner ID: ${suggestion.user_id}, Requester ID: ${user_id}`);
     
-    // Allow deletion if super user mode is enabled or user owns the suggestion
-    if (!isSuperUser && suggestion.user_id !== user_id) {
+    // Always allow if superUser, otherwise check ownership
+    const canDelete = isSuperUser || suggestion.user_id === user_id;
+    
+    if (!canDelete) {
+      console.log(`Permission denied - isSuperUser: ${isSuperUser}, suggestion.user_id: ${suggestion.user_id}, user_id: ${user_id}`);
       return NextResponse.json(
         { success: false, message: 'Unauthorized: You can only delete your own suggestions' },
         { status: 403 }
       );
     }
     
+    console.log(`Permission granted - Deleting suggestion ID: ${id}, Type: ${type}`);
+    
     try {
+      // Choose the correct table based on the suggestion type
       if (type === 'track') {
+        console.log(`Executing: DELETE FROM track_suggestions WHERE id = ${id}`);
         await query('DELETE FROM track_suggestions WHERE id = $1', [id]);
       } else {
+        console.log(`Executing: DELETE FROM arena_suggestions WHERE id = ${id}`);
         await query('DELETE FROM arena_suggestions WHERE id = $1', [id]);
       }
       
+      console.log(`Deletion successful for suggestion ID: ${id}`);
       return NextResponse.json({
         success: true,
         message: 'Suggestion deleted successfully'
-      });    } catch (dbError: any) {
-      console.error('Database error deleting suggestion:', dbError);
+      });
+    } catch (dbError: any) {
+      console.error(`Database error deleting suggestion ID: ${id}:`, dbError);
       return NextResponse.json(
-        { success: false, message: `Database error: ${dbError.message || 'Unknown error'}` },
+        { 
+          success: false, 
+          message: `Database error: ${dbError.message || 'Unknown error'}`,
+          details: {
+            id,
+            type,
+            error: dbError.toString()
+          }
+        },
         { status: 500 }
       );
-    }  } catch (error) {
-    console.error('Error deleting suggestion:', error);
-    // Add more detailed error information
-    const errorMessage = error instanceof Error ? error.message : 'Failed to delete suggestion';
-    const errorDetails = {
-      success: false, 
-      message: errorMessage,
-      details: {
-        id: resolvedParams?.id,
-        user_id: request.nextUrl.searchParams.get('user_id'),
-        super: request.nextUrl.searchParams.get('super'),
-        errorType: error?.constructor?.name,
-        stack: error instanceof Error ? error.stack : undefined
-      }
-    };
+    }
+  } catch (error: any) {
+    console.error('Error in DELETE handler:', error);
     
-    console.error('Detailed error info:', JSON.stringify(errorDetails, null, 2));
-    
-    return NextResponse.json(errorDetails, { status: 500 });
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Failed to delete suggestion',
+        details: {
+          id: params instanceof Promise ? '(Promise)' : params.id,
+          user_id: request.nextUrl.searchParams.get('user_id'),
+          super: request.nextUrl.searchParams.get('super'),
+          errorType: error?.constructor?.name,
+          stack: error instanceof Error ? error.stack : undefined
+        }
+      },
+      { status: 500 }
+    );
   }
 }

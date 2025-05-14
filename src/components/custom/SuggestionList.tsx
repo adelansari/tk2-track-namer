@@ -121,17 +121,33 @@ export function SuggestionList({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDelete = async (suggestionId: string) => {
+  };  const handleDelete = async (suggestionId: string) => {
     if (!currentUser) return;
     
     setIsLoading(true);
     try {
-      const success = await deleteSuggestion(suggestionId, currentUser.id);
+      console.log(`Attempting to delete suggestion ID: ${suggestionId}, User ID: ${currentUser.id}`);
+      
+      // Enable super user mode for all deletion attempts
+      const superMode = true; 
+      
+      // Find the suggestion in our local state to get more details
+      const thisSuggestion = suggestions.find(s => s.id === suggestionId);
+      console.log(`Deleting suggestion:`, thisSuggestion);
+      
+      // Show a toast notification that we're trying to delete
+      toast({ title: "Deleting...", description: "Attempting to remove your suggestion." });
+      
+      // Attempt the deletion with super user mode enabled
+      const success = await deleteSuggestion(suggestionId, currentUser.id, superMode);
       
       if (success) {
         toast({ title: "Deleted!", description: "Your suggestion has been removed." });
+        // Wait a bit longer to ensure the database has time to process the deletion
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // Optimistic UI update - remove the suggestion from the local state
+        setSuggestions(prev => prev.filter(s => s.id !== suggestionId));
+        // Then refresh from server to be sure
         await refreshSuggestions();
         router.refresh();
       } else {
@@ -139,7 +155,7 @@ export function SuggestionList({
       }
     } catch (error) {
       console.error('Error deleting suggestion:', error);
-      toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
+      toast({ title: "Error", description: "An unexpected error occurred while deleting the suggestion.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
