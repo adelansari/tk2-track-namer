@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Shield, ChevronLeft, ChevronRight } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
+import { TrackScreenshotGallery } from '@/components/custom/TrackScreenshotGallery';
 
 // Helper function to get next arena ID
 const getNextArenaId = (currentId: string): string | null => {
@@ -19,7 +20,31 @@ const getPrevArenaId = (currentId: string): string | null => {
   const currentNumber = parseInt(currentId.split('-')[1]);
   const prevNumber = currentNumber - 1;
   return prevNumber >= 1 ? `arena-${String(prevNumber).padStart(2, '0')}` : null;
-}
+};
+
+// Function to get the base path for arena screenshots
+const getArenaScreenshotBasePath = (arenaNumber: number): string | null => {
+  try {
+    // All arenas 1-9 have screenshots
+    if (arenaNumber < 1 || arenaNumber > 9) return null;
+    
+    // Format the arena folder name
+    const folderName = `arena-${String(arenaNumber).padStart(2, '0')}`;
+    return `/assets/BattleArenaScreenshots/${folderName}`;
+  } catch (error) {
+    console.error("Error getting arena screenshot path:", error);
+    return null;
+  }
+};
+
+// Function to get screenshots for an arena
+const getArenaScreenshots = (arenaNumber: number): string[] => {
+  const basePath = getArenaScreenshotBasePath(arenaNumber);
+  if (!basePath) return [];
+  
+  // Return the base path for the gallery component to handle discovery
+  return [`${basePath}/basepath`];
+};
 
 interface BattleArenaDetailPageProps {
   params: Promise<{ id: string }> | { id: string };
@@ -45,6 +70,9 @@ export default async function BattleArenaDetailPage({ params }: BattleArenaDetai
   }
 
   const title = arena.name || `Arena ${String(arena.numericId).padStart(2, '0')}`;
+  
+  // Get screenshots for this arena
+  const screenshots = getArenaScreenshots(arena.numericId);
 
   return (
     <div className="space-y-8">
@@ -68,7 +96,8 @@ export default async function BattleArenaDetailPage({ params }: BattleArenaDetai
               className="object-cover"
             />
           </div>
-        </CardHeader>        <CardContent className="p-6">
+        </CardHeader>        
+        <CardContent className="p-6">
           <div className="flex items-center justify-between gap-4 mb-4">
             {getPrevArenaId(arena.id) ? (
               <Link 
@@ -102,6 +131,10 @@ export default async function BattleArenaDetailPage({ params }: BattleArenaDetai
             {/* Arena names are not pre-defined, so always show this message */}
             {`Help us find the perfect name for Arena ${String(arena.numericId).padStart(2, '0')}! Submit your creative ideas below.`}
           </CardDescription>
+          
+          {screenshots.length > 0 && (
+            <TrackScreenshotGallery screenshots={screenshots} title={title} />
+          )}
         </CardContent>
       </Card>
 
