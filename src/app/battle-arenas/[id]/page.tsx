@@ -84,11 +84,6 @@ export default async function BattleArenaDetailPage({ params }: BattleArenaDetai
 
             <div className="flex flex-col items-center gap-2">
               <CardTitle className="text-3xl md:text-4xl font-bold text-center">{title}</CardTitle>
-              {arena.name && (
-                <div className="flex items-center text-lg text-green-600 bg-green-100 dark:bg-green-900 dark:text-green-300 px-3 py-1 rounded-md">
-                  <Shield className="h-5 w-5 mr-2" /> Official Name
-                </div>
-              )}
             </div>
 
             {getNextArenaId(arena.id) ? (
