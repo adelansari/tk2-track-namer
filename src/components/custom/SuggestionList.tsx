@@ -128,8 +128,8 @@ export function SuggestionList({
     try {
       console.log(`Attempting to delete suggestion ID: ${suggestionId}, User ID: ${currentUser.id}`);
       
-      // Enable super user mode for all deletion attempts
-      const superMode = true; 
+      // Disable super user mode for normal operation (security best practice)
+      const superMode = false;
       
       // Find the suggestion in our local state to get more details
       const thisSuggestion = suggestions.find(s => s.id === suggestionId);
@@ -138,7 +138,7 @@ export function SuggestionList({
       // Show a toast notification that we're trying to delete
       toast({ title: "Deleting...", description: "Attempting to remove your suggestion." });
       
-      // Attempt the deletion with super user mode enabled
+      // Attempt the deletion with regular user permissions
       const success = await deleteSuggestion(suggestionId, currentUser.id, superMode);
       
       if (success) {
