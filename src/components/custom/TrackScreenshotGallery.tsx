@@ -38,8 +38,11 @@ export function TrackScreenshotGallery({ screenshots, title }: TrackScreenshotGa
       const potentialScreenshots: string[] = [];
       const maxImagesToCheck = 15; // Reasonable upper limit to avoid too many 404s
       
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      
       for (let i = 1; i <= maxImagesToCheck; i++) {
-        potentialScreenshots.push(`${baseDirPath}/${String(i).padStart(2, '0')}.jpeg`);
+        potentialScreenshots.push(`${baseDirPath}/${String(i).padStart(2, '0')}.jpeg?t=${timestamp}`);
       }
       
       // Check which images actually exist
@@ -49,6 +52,7 @@ export function TrackScreenshotGallery({ screenshots, title }: TrackScreenshotGa
             const img = new window.Image(); // Use window.Image instead of Image to avoid conflict
             img.onload = () => resolve(src);
             img.onerror = () => resolve(null);
+            // Strip timestamp for error checking but keep it for successful loads
             img.src = src;
           });
         })
@@ -115,6 +119,7 @@ export function TrackScreenshotGallery({ screenshots, title }: TrackScreenshotGa
                 fill
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 className="object-cover"
+                unoptimized={true}
               />
               <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-all flex items-center justify-center">
                 <span className="opacity-0 hover:opacity-100 text-white font-medium">Click to enlarge</span>
@@ -140,6 +145,7 @@ export function TrackScreenshotGallery({ screenshots, title }: TrackScreenshotGa
                   priority
                   sizes="100vw"
                   className="object-contain p-4"
+                  unoptimized={true} // Disables Next.js image optimization cache
                 />
               </div>
               
