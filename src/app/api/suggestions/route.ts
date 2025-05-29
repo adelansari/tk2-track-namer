@@ -4,14 +4,13 @@ import { getUsersDisplayNames } from '@/lib/firebaseAdmin';
 
 // GET all suggestions for tracks and arenas with pagination
 export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
+  try {    const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get('type') || 'all';  // 'track', 'arena', 'all'
     const itemId = searchParams.get('itemId') || null;
     const itemIds = searchParams.getAll('itemIds'); // For batch counts
     const countsOnly = searchParams.get('countsOnly') === 'true'; // For batch counts
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const limit = parseInt(searchParams.get('limit') || '1000', 10);
     const offset = (page - 1) * limit;
 
     let queryText = '';
@@ -124,9 +123,8 @@ export async function GET(request: NextRequest) {
         ${itemId ? ' WHERE track_id = $1' : ''}
       `;
     }
-    
-    // Add order by and pagination
-    queryText += ' ORDER BY votes DESC, created_at DESC';
+      // Add order by and pagination - sort by newest first, then by votes
+    queryText += ' ORDER BY created_at DESC, votes DESC';
     queryText += ' LIMIT $' + (queryParams.length + 1) + ' OFFSET $' + (queryParams.length + 2);
     queryParams.push(limit, offset);
       // Execute the query
