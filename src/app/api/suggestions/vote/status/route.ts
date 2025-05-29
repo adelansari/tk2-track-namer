@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const suggestionId = searchParams.get('suggestion_id');
     const userId = searchParams.get('user_id');
+    const suggestionType = searchParams.get('suggestion_type'); // Optional parameter to avoid ID collisions
     
     if (!suggestionId || !userId) {
       return NextResponse.json(
@@ -15,15 +16,26 @@ export async function GET(request: NextRequest) {
       );
     }    // Make sure the suggestion ID is properly cast to integer for database query
     const numericSuggestionId = parseInt(suggestionId, 10);
-    console.log(`Checking vote status for suggestion ID: ${suggestionId} (${numericSuggestionId}), user ID: ${userId}`);
+    console.log(`Checking vote status for suggestion ID: ${suggestionId} (${numericSuggestionId}), user ID: ${userId}, type: ${suggestionType || 'any'}`);
     
-    // Try both suggestion types - let's check existing votes for both types
-    const voteResult = await query(
-      `SELECT * FROM user_votes 
-       WHERE user_id = $1 AND suggestion_id = $2 
-       AND suggestion_type IN ('track', 'arena')`,
-      [userId, numericSuggestionId]
-    );
+    // Build the query based on whether suggestion type is specified
+    let voteQuery: string;
+    let queryParams: any[];
+    
+    if (suggestionType && (suggestionType === 'track' || suggestionType === 'arena')) {
+      // Use specific suggestion type to avoid ID collisions
+      voteQuery = `SELECT * FROM user_votes 
+                   WHERE user_id = $1 AND suggestion_id = $2 AND suggestion_type = $3`;
+      queryParams = [userId, numericSuggestionId, suggestionType];
+    } else {
+      // Fallback to checking both types (for backward compatibility)
+      voteQuery = `SELECT * FROM user_votes 
+                   WHERE user_id = $1 AND suggestion_id = $2 
+                   AND suggestion_type IN ('track', 'arena')`;
+      queryParams = [userId, numericSuggestionId];
+    }
+    
+    const voteResult = await query(voteQuery, queryParams);
     
     if (voteResult.rows.length === 0) {
       return NextResponse.json({

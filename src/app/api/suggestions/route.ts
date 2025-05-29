@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '1000', 10);
     const offset = (page - 1) * limit;
 
+    console.log('API Request params:', { type, itemId, itemIds, countsOnly, page, limit, offset });
+
     let queryText = '';
     let queryParams: any[] = [];
     let countQuery = '';
@@ -102,21 +104,14 @@ export async function GET(request: NextRequest) {
           queryText = queryText + ' UNION ALL ' + arenaQuery;
         }
       }
-      
-      if (type === 'all') {
-        const arenaCountQuery = `
-          SELECT COUNT(*) as arena_count FROM arena_suggestions
-          ${itemId ? ' WHERE arena_id = $1' : ''}
-        `;
-        countQuery = countQuery ? countQuery + '; ' + arenaCountQuery : arenaCountQuery;
-      } else if (type === 'arena') {
+        if (type === 'arena') {
         countQuery = `
           SELECT COUNT(*) as count FROM arena_suggestions
           ${itemId ? ' WHERE arena_id = $1' : ''}
         `;
       }
     }
-    
+
     if (type === 'track') {
       countQuery = `
         SELECT COUNT(*) as count FROM track_suggestions
@@ -143,18 +138,24 @@ export async function GET(request: NextRequest) {
         row.user_display_name = displayNames.get(row.user_id) || 'Anonymous User';
       });
     }
-    
-    // Get total count for pagination
+      // Get total count for pagination
     let totalItems = 0;
-    if (countQuery) {
-      const countResult = await query(countQuery, itemId ? [itemId] : []);
+    if (type === 'all') {
+      // For 'all' type, we need to count both tables separately
+      const trackCountResult = await query(
+        `SELECT COUNT(*) as count FROM track_suggestions${itemId ? ' WHERE track_id = $1' : ''}`,
+        itemId ? [itemId] : []
+      );
+      const arenaCountResult = await query(
+        `SELECT COUNT(*) as count FROM arena_suggestions${itemId ? ' WHERE arena_id = $1' : ''}`,
+        itemId ? [itemId] : []
+      );
       
-      if (type === 'all') {
-        totalItems = parseInt(countResult.rows[0].track_count || '0', 10) + 
-                     parseInt(countResult.rows[1].arena_count || '0', 10);
-      } else {
-        totalItems = parseInt(countResult.rows[0].count || '0', 10);
-      }
+      totalItems = parseInt(trackCountResult.rows[0].count || '0', 10) + 
+                   parseInt(arenaCountResult.rows[0].count || '0', 10);
+    } else if (countQuery) {
+      const countResult = await query(countQuery, itemId ? [itemId] : []);
+      totalItems = parseInt(countResult.rows[0].count || '0', 10);
     }
     
     return NextResponse.json({

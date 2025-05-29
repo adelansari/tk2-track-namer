@@ -1,35 +1,48 @@
 import { query } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Helper function to get suggestion by ID with its type
-async function getSuggestionWithType(id: string) {
+// Helper function to get suggestion by ID with its type, optionally specifying the type to check
+async function getSuggestionWithType(id: string, preferredType?: 'track' | 'arena') {
   // Ensure id is properly cast to integer for database query
   // This is crucial as arena IDs might be coming as numeric strings
   const numericId = parseInt(id, 10);
-  console.log(`Looking up suggestion with ID: ${id} (${numericId})`);
   
-  // Check both tables but check arena suggestions first
-  const arenaResult = await query('SELECT *, \'arena\' as type FROM arena_suggestions WHERE id = $1', [numericId]);
-  if (arenaResult.rows.length > 0) {
-    console.log('Found in arena_suggestions');
-    return { suggestion: arenaResult.rows[0], type: 'arena' };
+  // If a preferred type is specified, check that table first
+  if (preferredType === 'track') {
+    const trackResult = await query('SELECT *, \'track\' as type FROM track_suggestions WHERE id = $1', [numericId]);
+    if (trackResult.rows.length > 0) {
+      return { suggestion: trackResult.rows[0], type: 'track' };
+    }
+  } else if (preferredType === 'arena') {
+    const arenaResult = await query('SELECT *, \'arena\' as type FROM arena_suggestions WHERE id = $1', [numericId]);
+    if (arenaResult.rows.length > 0) {
+      return { suggestion: arenaResult.rows[0], type: 'arena' };
+    }
+  } else {
+    // No preferred type specified, check both tables (arena first for backward compatibility)
+    const arenaResult = await query('SELECT *, \'arena\' as type FROM arena_suggestions WHERE id = $1', [numericId]);
+    if (arenaResult.rows.length > 0) {
+      return { suggestion: arenaResult.rows[0], type: 'arena' };
+    }
+    
+    // Try track suggestions if not found in arena
+    const trackResult = await query('SELECT *, \'track\' as type FROM track_suggestions WHERE id = $1', [numericId]);
+    if (trackResult.rows.length > 0) {
+      return { suggestion: trackResult.rows[0], type: 'track' };
+    }
   }
   
-  // Try track suggestions if not found in arena
-  const trackResult = await query('SELECT *, \'track\' as type FROM track_suggestions WHERE id = $1', [numericId]);
-  if (trackResult.rows.length > 0) {
-    console.log('Found in track_suggestions');
-    return { suggestion: trackResult.rows[0], type: 'track' };
-  }
-  
-  console.log(`No suggestion found with ID: ${id}`);
   return { suggestion: null, type: null };
 }
 
 // POST to vote on a suggestion
 export async function POST(request: NextRequest) {
-  try {
-    const { id, action, user_id } = await request.json();
+  let id, user_id;
+  try {    const requestData = await request.json();
+    id = requestData.id;
+    const action = requestData.action;
+    user_id = requestData.user_id;
+    const suggestionType = requestData.suggestion_type; // New parameter to specify type
     
     if (!id || !action || !user_id) {
       return NextResponse.json(
@@ -46,8 +59,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get the suggestion to vote on
-    const { suggestion, type } = await getSuggestionWithType(id);
+    // Get the suggestion to vote on, using the preferred type if provided
+    const { suggestion, type } = await getSuggestionWithType(id, suggestionType);
     
     if (!suggestion) {
       return NextResponse.json(
@@ -132,11 +145,20 @@ export async function POST(request: NextRequest) {
       // Rollback in case of error
       await query('ROLLBACK');
       throw error;
-    }
-  } catch (error) {
+    }  } catch (error) {
     console.error('Error voting on suggestion:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      id: id || 'undefined',
+      user_id: user_id || 'undefined'
+    });
     return NextResponse.json(
-      { success: false, message: 'Failed to vote on suggestion' },
+      { 
+        success: false, 
+        message: 'Failed to vote on suggestion',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

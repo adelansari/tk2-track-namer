@@ -67,14 +67,12 @@ export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: It
     const apiType = itemType === 'track' ? 'track' : 'arena';
     
     // Check if we're in build time - only make this check on the server
-    const isServer = typeof window === 'undefined';
-    const isBuildTime = isServer &&
+    const isServer = typeof window === 'undefined';    const isBuildTime = isServer &&
                         process.env.NODE_ENV === 'production' &&
                         process.env.NEXT_PHASE === 'phase-production-build' &&
                         !process.env.VERCEL; // Don't skip on Vercel runtime
 
     if (isBuildTime) {
-      console.log(`[Build] Skipping API fetch for suggestion counts for ${apiType}s`);
       const counts = new Map<string, number>();
       itemIds.forEach(id => counts.set(id, 0));
       return counts;
@@ -139,9 +137,7 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
                         process.env.NODE_ENV === 'production' && 
                         process.env.NEXT_PHASE === 'phase-production-build' &&
                         !process.env.VERCEL; // Don't skip on Vercel runtime
-    
-    if (isBuildTime) {
-      console.log(`[Build] Skipping API fetch for ${apiType} ${itemId}`);
+      if (isBuildTime) {
       return [];
     }
     
@@ -150,11 +146,10 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
       process.env.VERCEL || process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod'
         ? (process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app') 
         : 'http://localhost:3000'
-    ) : '';
-    
-    const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}`);
+    ) : '';    const response = await fetch(`${baseUrl}/api/suggestions?type=${apiType}&itemId=${itemId}`);
     
     if (!response.ok) {
+      console.error(`Failed to fetch suggestions: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch suggestions: ${response.status}`);
     }
 
@@ -301,9 +296,9 @@ export const deleteSuggestion = async (suggestionId: string, userId: string, sup
 };
 
 // Vote on suggestion
-export const voteSuggestion = async (suggestionId: string, action: 'upvote', userId: string): Promise<{ success: boolean, action?: 'added' | 'removed' }> => {
+export const voteSuggestion = async (suggestionId: string, action: 'upvote', userId: string, suggestionType?: 'track' | 'arena'): Promise<{ success: boolean, action?: 'added' | 'removed' }> => {
   try {
-    console.log(`Voting on suggestion ID: ${suggestionId} with action: ${action} by user: ${userId}`);
+    console.log(`Voting on suggestion ID: ${suggestionId} with action: ${action} by user: ${userId}, type: ${suggestionType || 'auto-detect'}`);
     const response = await fetch('/api/suggestions/vote', {
       method: 'POST',
       headers: {
@@ -312,7 +307,8 @@ export const voteSuggestion = async (suggestionId: string, action: 'upvote', use
       body: JSON.stringify({
         id: suggestionId,
         action: 'upvote', // Only upvote is supported
-        user_id: userId
+        user_id: userId,
+        suggestion_type: suggestionType // Pass the suggestion type to avoid ID collisions
       }),
     });
 
@@ -320,29 +316,8 @@ export const voteSuggestion = async (suggestionId: string, action: 'upvote', use
       const errorData = await response.json();
       console.error('Error voting on suggestion:', errorData);
       return { success: false };
-    }
-
-    const data = await response.json();
+    }    const data = await response.json();
     console.log(`Vote response for suggestion ${suggestionId}:`, data);
-    
-    // Ensure vote counts are synced after a short delay
-    setTimeout(async () => {
-      try {
-        // This ensures all vote counts are properly synchronized
-        await fetch('/api/suggestions/vote/fix-counts', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            type: 'all'
-          }),
-        });
-        console.log('Vote counts synchronized');
-      } catch (syncError) {
-        console.error('Error synchronizing vote counts:', syncError);
-      }
-    }, 500);
     
     return { 
       success: data.success === true,
@@ -355,12 +330,13 @@ export const voteSuggestion = async (suggestionId: string, action: 'upvote', use
 };
 
 // Get a user's vote on a specific suggestion
-export const getUserVote = async (suggestionId: string, userId: string): Promise<'upvote' | null> => {
+export const getUserVote = async (suggestionId: string, userId: string, suggestionType?: 'track' | 'arena'): Promise<'upvote' | null> => {
   try {
     // Log the suggestion ID for debugging
-    console.log(`Getting vote status for suggestion: ${suggestionId}, user: ${userId}`);
+    console.log(`Getting vote status for suggestion: ${suggestionId}, user: ${userId}, type: ${suggestionType || 'auto-detect'}`);
     
-    const response = await fetch(`/api/suggestions/vote/status?suggestion_id=${suggestionId}&user_id=${userId}`);
+    const typeParam = suggestionType ? `&suggestion_type=${suggestionType}` : '';
+    const response = await fetch(`/api/suggestions/vote/status?suggestion_id=${suggestionId}&user_id=${userId}${typeParam}`);
     
     if (!response.ok) {
       console.error(`Vote status response not OK: ${response.status}`);
@@ -378,6 +354,49 @@ export const getUserVote = async (suggestionId: string, userId: string): Promise
   } catch (error) {
     console.error('Error getting user vote status:', error);
     return null;
+  }
+};
+
+// Get user votes for multiple suggestions at once (batch)
+export const getUserVotesBatch = async (suggestionIds: string[], userId: string, suggestionType?: 'track' | 'arena'): Promise<Record<string, 'upvote' | null>> => {
+  try {
+    console.log(`Getting vote status for ${suggestionIds.length} suggestions for user: ${userId}, type: ${suggestionType || 'auto-detect'}`);
+    
+    if (suggestionIds.length === 0) {
+      return {};
+    }
+    
+    // Build query parameters for the batch request
+    const params = new URLSearchParams();
+    params.set('user_id', userId);
+    if (suggestionType) {
+      params.set('suggestion_type', suggestionType);
+    }
+    suggestionIds.forEach(id => params.append('suggestion_ids', id));
+    
+    const response = await fetch(`/api/suggestions/vote/status/batch?${params.toString()}`);
+    
+    if (!response.ok) {
+      console.error(`Batch vote status response not OK: ${response.status}`);
+      return {};
+    }
+    
+    const data = await response.json();
+    console.log(`Batch vote status response for ${suggestionIds.length} suggestions:`, data);
+    
+    if (data.success && data.votes) {
+      // Convert the vote_type numbers to 'upvote' | null
+      const result: Record<string, 'upvote' | null> = {};
+      for (const [suggestionId, voteType] of Object.entries(data.votes)) {
+        result[suggestionId] = voteType === 1 ? 'upvote' : null;
+      }
+      return result;
+    }
+    
+    return {};
+  } catch (error) {
+    console.error('Error getting batch user vote status:', error);
+    return {};
   }
 };
 

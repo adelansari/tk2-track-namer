@@ -144,11 +144,13 @@ export default async function TrackDetailPage({ params }: TrackDetailPageProps) 
             <TrackScreenshotGallery screenshots={screenshots} title={title} />
           )}
         </CardContent>
-      </Card>
-
-      <Card>
+      </Card>      <Card>
         <CardContent className="p-6">
-          <SuggestionFormWrapper itemId={track.id} itemType="track" />
+          <SuggestionFormWrapper 
+            itemId={track.id} 
+            itemType="track" 
+            initialSuggestions={track.suggestions}
+          />
         </CardContent>
       </Card>
     </div>

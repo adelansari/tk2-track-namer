@@ -3,7 +3,7 @@
 import type { Suggestion, ItemType } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { deleteSuggestion, voteSuggestion, fetchSuggestionsForItem, getUserVote } from '@/lib/data';
+import { deleteSuggestion, voteSuggestion, fetchSuggestionsForItem, getUserVote, getUserVotesBatch } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { Pencil, Trash2, UserCircle, MessageSquareText, ThumbsUp, Users } from 'lucide-react';
@@ -56,33 +56,40 @@ export function SuggestionList({
   const [isLoading, setIsLoading] = useState(false);
   const [voteInProgress, setVoteInProgress] = useState<string | null>(null);
   const [userVotes, setUserVotes] = useState<Record<string, 'upvote' | null>>({});
-
   useEffect(() => {
     setSuggestions(initialSuggestions);
-  }, [initialSuggestions]);
-
-  // Load user's existing votes when component mounts
+  }, [initialSuggestions]);  // Load user's existing votes when component mounts or user changes
   useEffect(() => {
     if (currentUser && suggestions.length > 0) {
       const loadUserVotes = async () => {
-        const votes: Record<string, 'upvote' | null> = {};
+        console.log(`Loading votes for user ${currentUser.id} for ${suggestions.length} suggestions`);
         
-        for (const suggestion of suggestions) {
-          try {
-            const voteType = await getUserVote(suggestion.id, currentUser.id);
-            // Only consider upvotes, ignore downvotes
-            votes[suggestion.id] = voteType === 'upvote' ? voteType : null;
-          } catch (error) {
-            console.error(`Error fetching vote for suggestion ${suggestion.id}:`, error);
+        try {
+          // Use batch API to get all votes at once instead of individual calls
+          const suggestionIds = suggestions.map(s => s.id);
+          const suggestionTypeForAPI = itemType === 'track' ? 'track' : 'arena';
+          const votes = await getUserVotesBatch(suggestionIds, currentUser.id, suggestionTypeForAPI);
+          setUserVotes(votes);
+        } catch (error) {
+          console.error(`Error fetching batch votes:`, error);
+          // Fallback to individual calls if batch fails
+          const votes: Record<string, 'upvote' | null> = {};
+          const suggestionTypeForAPI = itemType === 'track' ? 'track' : 'arena';
+          for (const suggestion of suggestions) {
+            try {
+              const voteType = await getUserVote(suggestion.id, currentUser.id, suggestionTypeForAPI);
+              votes[suggestion.id] = voteType === 'upvote' ? voteType : null;
+            } catch (error) {
+              console.error(`Error fetching vote for suggestion ${suggestion.id}:`, error);
+            }
           }
+          setUserVotes(votes);
         }
-        
-        setUserVotes(votes);
       };
-      
       loadUserVotes();
     }
-  }, [currentUser, suggestions]);  // Refresh suggestions from the database
+  }, [currentUser?.id, itemType]); // Add itemType to dependencies
+  // Refresh suggestions from the database
   const refreshSuggestions = async () => {
     setIsLoading(true);
     try {
@@ -92,25 +99,16 @@ export function SuggestionList({
       const freshSuggestions = await fetchSuggestionsForItem(itemId, itemType);
       console.log(`Refreshed ${itemType} suggestions for ${itemId}:`, freshSuggestions);
       setSuggestions(freshSuggestions);
-      
-      // Also refresh vote statuses when suggestions are refreshed
+        // Refresh vote statuses for the new suggestions if user is logged in
       if (currentUser && freshSuggestions.length > 0) {
-        console.log(`Refreshing vote statuses for ${freshSuggestions.length} suggestions`);
-        const votes: Record<string, 'upvote' | null> = {};
-        
-        // Sequentially fetch vote statuses (to avoid race conditions)
-        for (const suggestion of freshSuggestions) {
-          try {
-            console.log(`Checking vote for suggestion ${suggestion.id}`);
-            const voteType = await getUserVote(suggestion.id, currentUser.id);
-            votes[suggestion.id] = voteType === 'upvote' ? voteType : null;
-            console.log(`Vote for ${suggestion.id}: ${votes[suggestion.id]}`);
-          } catch (error) {
-            console.error(`Error fetching vote for suggestion ${suggestion.id}:`, error);
-          }
+        try {
+          const suggestionIds = freshSuggestions.map(s => s.id);
+          const suggestionTypeForAPI = itemType === 'track' ? 'track' : 'arena';
+          const votes = await getUserVotesBatch(suggestionIds, currentUser.id, suggestionTypeForAPI);
+          setUserVotes(votes);
+        } catch (error) {
+          console.error('Error refreshing vote statuses:', error);
         }
-        
-        setUserVotes(votes);
       }
       
       if (onSuggestionChanged) {
@@ -121,7 +119,7 @@ export function SuggestionList({
     } finally {
       setIsLoading(false);
     }
-  };  const handleDelete = async (suggestionId: string) => {
+  };const handleDelete = async (suggestionId: string) => {
     if (!currentUser) return;
     
     setIsLoading(true);
@@ -160,39 +158,21 @@ export function SuggestionList({
       setIsLoading(false);
     }
   };
-    const handleVote = async (suggestionId: string) => {
+  const handleVote = async (suggestionId: string) => {
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to vote on suggestions.", variant: "default" });
       return;
     }
     
     console.log(`Voting on suggestion ID: ${suggestionId}`);
-    setVoteInProgress(suggestionId);
-    try {
-      // Update the local UI first for a better user experience
-      const currentVoteStatus = userVotes[suggestionId] === 'upvote';
-      const optimisticVote = !currentVoteStatus ? 'upvote' : null;
+    setVoteInProgress(suggestionId);    try {
+      // Send the vote to the server immediately without optimistic updates
+      console.log(`Attempting to vote on suggestion ${suggestionId} for user ${currentUser.id}`);
       
-      // Apply optimistic update
-      setUserVotes(prev => ({
-        ...prev,
-        [suggestionId]: optimisticVote
-      }));
-        // Update the suggestion's vote count in the local state
-      setSuggestions(prev => prev.map(suggestion => {
-        if (suggestion.id === suggestionId) {
-          // Handle the case where votes might be undefined by defaulting to 0
-          const currentVotes = suggestion.votes ?? 0;
-          return {
-            ...suggestion,
-            votes: currentVotes + (optimisticVote ? 1 : -1)
-          };
-        }
-        return suggestion;
-      }));
-      
-      // Actually send the vote to the server
-      const result = await voteSuggestion(suggestionId, 'upvote', currentUser.id);
+      // Convert itemType to suggestion type for the API
+      const suggestionType = itemType === 'track' ? 'track' : 'arena';
+      const result = await voteSuggestion(suggestionId, 'upvote', currentUser.id, suggestionType);
+      console.log(`Vote result:`, result);
       
       if (result.success) {
         // Update the local userVotes state based on the action returned from the API
@@ -219,9 +199,13 @@ export function SuggestionList({
             description: "Your vote has been removed." 
           });
         }
+          // Add a small delay to ensure database has committed the vote count change
+        await new Promise(resolve => setTimeout(resolve, 200));
         
+        console.log(`Refreshing suggestions after vote...`);
         // Refresh suggestions from the server to ensure accurate vote counts
         await refreshSuggestions();
+        console.log(`Suggestions refreshed after vote.`);
       } else {
         toast({ title: "Error", description: "Failed to process your vote.", variant: "destructive" });
       }

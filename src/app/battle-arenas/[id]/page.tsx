@@ -136,11 +136,13 @@ export default async function BattleArenaDetailPage({ params }: BattleArenaDetai
             <TrackScreenshotGallery screenshots={screenshots} title={title} />
           )}
         </CardContent>
-      </Card>
-
-      <Card>
+      </Card>      <Card>
         <CardContent className="p-6">
-          <SuggestionFormWrapper itemId={arena.id} itemType="battle-arena" />
+          <SuggestionFormWrapper 
+            itemId={arena.id} 
+            itemType="battle-arena" 
+            initialSuggestions={arena.suggestions}
+          />
         </CardContent>
       </Card>
     </div>

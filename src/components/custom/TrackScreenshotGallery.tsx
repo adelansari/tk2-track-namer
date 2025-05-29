@@ -21,9 +21,11 @@ export function TrackScreenshotGallery({ screenshots, title }: TrackScreenshotGa
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   
   useEffect(() => {
-    // Only run if we're given a base path to work with
-    if (screenshots.length === 0 || !screenshots[0].includes('/basepath')) {
-      setDiscoveredImages(screenshots);
+    // Only run if we're given a base path to work with and we haven't discovered images yet
+    if (screenshots.length === 0 || !screenshots[0].includes('/basepath') || discoveredImages.length > 0) {
+      if (screenshots.length > 0 && !screenshots[0].includes('/basepath')) {
+        setDiscoveredImages(screenshots);
+      }
       setIsLoading(false);
       return;
     }
@@ -38,11 +40,11 @@ export function TrackScreenshotGallery({ screenshots, title }: TrackScreenshotGa
       const potentialScreenshots: string[] = [];
       const maxImagesToCheck = 15; // Reasonable upper limit to avoid too many 404s
       
-      // Add timestamp to prevent caching
-      const timestamp = Date.now();
+      // Use a stable timestamp based on the path to reduce repeated requests
+      const stableTimestamp = Math.floor(Date.now() / (1000 * 60 * 5)); // 5-minute intervals
       
       for (let i = 1; i <= maxImagesToCheck; i++) {
-        potentialScreenshots.push(`${baseDirPath}/${String(i).padStart(2, '0')}.jpeg?t=${timestamp}`);
+        potentialScreenshots.push(`${baseDirPath}/${String(i).padStart(2, '0')}.jpeg?t=${stableTimestamp}`);
       }
       
       // Check which images actually exist

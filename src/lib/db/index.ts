@@ -22,11 +22,9 @@ const pool = new Pool({
   },
 });
 
-
-// sanity‐check on import
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) console.error('DB connection error:', err.message);
-  else console.log('DB connected @', res.rows[0].now);
+// Add pool error handling to prevent unhandled rejections
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
 });
 
 export default pool;
