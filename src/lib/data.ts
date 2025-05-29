@@ -126,7 +126,8 @@ export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: It
 }
 
 // Fetch suggestions from database
-export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType): Promise<Suggestion[]> => {  try {
+export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType): Promise<Suggestion[]> => {
+  try {
     // Convert the itemType to API type format
     const apiType = itemType === 'track' ? 'track' : 'arena';
     
