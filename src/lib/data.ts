@@ -64,7 +64,9 @@ let battleArenas: BattleArena[] = Array.from({ length: 9 }, (_, i) => {
 // Fetch suggestion counts for multiple items
 export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: ItemType): Promise<Map<string, number>> => {
   try {
-    const apiType = itemType === 'track' ? 'track' : 'arena';    // Check if we're in build time - only make this check on the server
+    const apiType = itemType === 'track' ? 'track' : 'arena';
+    
+    // Check if we're in build time - only make this check on the server
     const isServer = typeof window === 'undefined';
     const isBuildTime = isServer &&
                         process.env.NODE_ENV === 'production' &&
@@ -77,10 +79,10 @@ export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: It
       itemIds.forEach(id => counts.set(id, 0));
       return counts;
     }
-
+    
     // Simplified URL handling to avoid client/server differences
     const baseUrl = isServer ? (
-      process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod' 
+      process.env.VERCEL || process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod'
         ? (process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app')
         : 'http://localhost:3000'
     ) : '';
@@ -124,11 +126,11 @@ export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: It
 }
 
 // Fetch suggestions from database
-export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType): Promise<Suggestion[]> => {
-  try {
+export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType): Promise<Suggestion[]> => {  try {
     // Convert the itemType to API type format
     const apiType = itemType === 'track' ? 'track' : 'arena';
-      // Use consistent isServer check
+    
+    // Use consistent isServer check
     const isServer = typeof window === 'undefined';
     
     // Only skip API calls during actual build phase, not during runtime in production
@@ -144,7 +146,7 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
     
     // Simplified URL handling to avoid client/server differences
     const baseUrl = isServer ? (
-      process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod' 
+      process.env.VERCEL || process.env.NEXT_PUBLIC_ENVIRONMENT === 'prod'
         ? (process.env.NEXT_PUBLIC_PROD_URL || 'https://tk2-track-namer.vercel.app') 
         : 'http://localhost:3000'
     ) : '';
@@ -156,7 +158,7 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
     }
 
     const data = await response.json();
-      const mappedSuggestions = data.suggestions.map((suggestion: any) => ({
+    const mappedSuggestions = data.suggestions.map((suggestion: any) => ({
       id: suggestion.id.toString(),
       itemId: suggestion.item_id,
       userId: suggestion.user_id,
