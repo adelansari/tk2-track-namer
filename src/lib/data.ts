@@ -64,12 +64,12 @@ let battleArenas: BattleArena[] = Array.from({ length: 9 }, (_, i) => {
 // Fetch suggestion counts for multiple items
 export const fetchSuggestionCountsBatch = async (itemIds: string[], itemType: ItemType): Promise<Map<string, number>> => {
   try {
-    const apiType = itemType === 'track' ? 'track' : 'arena';
-    // Check if we're in build time - only make this check on the server
+    const apiType = itemType === 'track' ? 'track' : 'arena';    // Check if we're in build time - only make this check on the server
     const isServer = typeof window === 'undefined';
     const isBuildTime = isServer &&
                         process.env.NODE_ENV === 'production' &&
-                        process.env.NEXT_PHASE === 'phase-production-build';
+                        process.env.NEXT_PHASE === 'phase-production-build' &&
+                        !process.env.VERCEL; // Don't skip on Vercel runtime
 
     if (isBuildTime) {
       console.log(`[Build] Skipping API fetch for suggestion counts for ${apiType}s`);
@@ -128,14 +128,14 @@ export const fetchSuggestionsForItem = async (itemId: string, itemType: ItemType
   try {
     // Convert the itemType to API type format
     const apiType = itemType === 'track' ? 'track' : 'arena';
-    
-    // Use consistent isServer check
+      // Use consistent isServer check
     const isServer = typeof window === 'undefined';
     
     // Only skip API calls during actual build phase, not during runtime in production
     const isBuildTime = isServer &&
                         process.env.NODE_ENV === 'production' && 
-                        process.env.NEXT_PHASE === 'phase-production-build';
+                        process.env.NEXT_PHASE === 'phase-production-build' &&
+                        !process.env.VERCEL; // Don't skip on Vercel runtime
     
     if (isBuildTime) {
       console.log(`[Build] Skipping API fetch for ${apiType} ${itemId}`);
