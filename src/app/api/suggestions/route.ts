@@ -43,9 +43,14 @@ export async function GET(request: NextRequest) {
       itemIds.forEach(id => {
         if (!counts[id]) {
           counts[id] = 0;
+        }      });
+      return NextResponse.json({ counts }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         }
       });
-      return NextResponse.json({ counts });
     }
     
     if (type === 'track' || type === 'all') {      queryText = `
@@ -157,8 +162,7 @@ export async function GET(request: NextRequest) {
       const countResult = await query(countQuery, itemId ? [itemId] : []);
       totalItems = parseInt(countResult.rows[0].count || '0', 10);
     }
-    
-    return NextResponse.json({
+      return NextResponse.json({
       success: true,
       suggestions: result.rows,
       pagination: {
@@ -166,6 +170,12 @@ export async function GET(request: NextRequest) {
         limit,
         totalItems,
         totalPages: Math.ceil(totalItems / limit)
+      }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       }
     });
   } catch (error) {

@@ -54,11 +54,16 @@ export async function GET(request: NextRequest) {
     });
     
     console.log(`Found ${voteResult.rows.length} votes out of ${suggestionIds.length} suggestions`);
-    
-    return NextResponse.json({
+      return NextResponse.json({
       success: true,
       votes: voteMap,
       message: `Checked ${suggestionIds.length} suggestions`
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
     });
   } catch (error) {
     console.error('Error checking batch vote status:', error);
