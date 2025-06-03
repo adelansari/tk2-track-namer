@@ -4,6 +4,10 @@ import { Separator } from '@/components/ui/separator';
 import { Swords } from 'lucide-react';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
 
+// Force dynamic rendering to prevent stale data caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function BattleArenasPage() {
   const battleArenas = await getBattleArenas();
 

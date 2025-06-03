@@ -2,6 +2,10 @@ import { CategoryCard } from '@/components/custom/CategoryCard';
 import { Route, Swords } from 'lucide-react';
 import { getBattleArenas, getTracks } from '@/lib/data';
 
+// Force dynamic rendering to prevent stale data caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function HomePage() {
   let tracks = [];
   let battleArenas = [];

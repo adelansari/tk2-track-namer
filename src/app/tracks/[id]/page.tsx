@@ -9,6 +9,10 @@ import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
 import { TrackScreenshotGallery } from '@/components/custom/TrackScreenshotGallery';
 import { Track } from '@/lib/types';
 
+// Force dynamic rendering to prevent stale data caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface TrackDetailPageProps {
   params: Promise<{ id: string }> | { id: string };
 }

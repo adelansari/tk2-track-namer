@@ -8,6 +8,10 @@ import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/custom/Breadcrumbs';
 import { TrackScreenshotGallery } from '@/components/custom/TrackScreenshotGallery';
 
+// Force dynamic rendering to prevent stale data caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Helper function to get next arena ID
 const getNextArenaId = (currentId: string): string | null => {
   const currentNumber = parseInt(currentId.split('-')[1]);
